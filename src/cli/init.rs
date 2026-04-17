@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use dialoguer::{Confirm, Input};
 
 use crate::config::schema::{KimonoConfig, Repo, Workspace};
@@ -11,21 +11,49 @@ use crate::ui;
 
 /// Run the `init` command.
 ///
+/// Creates a new directory named after the workspace (like `git clone`) and
+/// initializes the kimono workspace inside it.
+///
 /// Two modes:
 /// - `--from <path>`: migrate from an ofmono `.repos.conf` file.
 /// - Interactive (default): guided wizard to build config from scratch.
 ///
 /// When `bare` is true, only the config is written (no cloning or context
 /// generation).
-pub fn run(from: Option<&Path>, bare: bool) -> Result<()> {
-    let workspace_root =
+pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()> {
+    let parent_dir =
         std::env::current_dir().context("failed to determine current directory")?;
 
     let config = if let Some(conf_dir) = from {
-        build_config_from_repos_conf(conf_dir, &workspace_root)?
+        build_config_from_repos_conf(conf_dir, name_arg)?
     } else {
-        build_config_interactive()?
+        build_config_interactive(name_arg, bare)?
     };
+
+    // Create the workspace directory (like `git clone <url>` creates `<name>/`)
+    let workspace_root = parent_dir.join(&config.workspace.name);
+    if workspace_root.exists() {
+        let is_empty = fs::read_dir(&workspace_root)
+            .with_context(|| format!("failed to read {}", workspace_root.display()))?
+            .next()
+            .is_none();
+        if !is_empty {
+            bail!(
+                "directory '{}' already exists and is not empty",
+                config.workspace.name
+            );
+        }
+    } else {
+        fs::create_dir(&workspace_root).with_context(|| {
+            format!("failed to create workspace directory '{}'", config.workspace.name)
+        })?;
+    }
+    ui::success(&format!("Created workspace directory: {}", config.workspace.name));
+
+    // chdir into the workspace so `generate::run()` (which uses `find_config()`
+    // relative to cwd) picks up the new config.
+    std::env::set_current_dir(&workspace_root)
+        .with_context(|| format!("failed to cd into {}", workspace_root.display()))?;
 
     // Write .kimono/config.yml
     let kimono_dir = workspace_root.join(".kimono");
@@ -78,8 +106,9 @@ pub fn run(from: Option<&Path>, bare: bool) -> Result<()> {
             }
         }
 
-        // Generate context files
-        generate_context(&config, &workspace_root)?;
+        // Generate context files via the canonical generate path. The config
+        // was written to disk above so `generate::run` can load it.
+        crate::cli::context::generate::run(false)?;
 
         // Initialize git repo (ignore errors if already a git repo)
         let _ = Command::new("git")
@@ -97,6 +126,8 @@ pub fn run(from: Option<&Path>, bare: bool) -> Result<()> {
     if bare {
         ui::info("  Mode:       bare (config only, no clones)");
     }
+    ui::info("");
+    ui::info(&format!("  Next: cd {}", config.workspace.name));
 
     Ok(())
 }
@@ -105,7 +136,7 @@ pub fn run(from: Option<&Path>, bare: bool) -> Result<()> {
 ///
 /// Format: `name:remote:branch` (colon-separated), lines starting with `#` are
 /// comments, empty lines are skipped.
-fn build_config_from_repos_conf(conf_dir: &Path, workspace_root: &Path) -> Result<KimonoConfig> {
+fn build_config_from_repos_conf(conf_dir: &Path, name_arg: Option<&str>) -> Result<KimonoConfig> {
     let repos_conf_path = conf_dir.join(".repos.conf");
     let contents = fs::read_to_string(&repos_conf_path)
         .with_context(|| format!("failed to read {}", repos_conf_path.display()))?;
@@ -145,18 +176,22 @@ fn build_config_from_repos_conf(conf_dir: &Path, workspace_root: &Path) -> Resul
         );
     }
 
-    // Derive workspace name from the directory name or ask
-    let default_name = workspace_root
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("my-workspace")
-        .to_string();
-
-    let name: String = Input::new()
-        .with_prompt("Workspace name")
-        .default(default_name)
-        .interact_text()
-        .context("failed to read workspace name")?;
+    // Use the provided name, or derive from the source directory name, or prompt
+    let name = match name_arg {
+        Some(n) => n.to_string(),
+        None => {
+            let default_name = conf_dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("my-workspace")
+                .to_string();
+            Input::new()
+                .with_prompt("Workspace name")
+                .default(default_name)
+                .interact_text()
+                .context("failed to read workspace name")?
+        }
+    };
 
     Ok(KimonoConfig {
         workspace: Workspace {
@@ -170,29 +205,44 @@ fn build_config_from_repos_conf(conf_dir: &Path, workspace_root: &Path) -> Resul
 }
 
 /// Interactive wizard to build a KimonoConfig from user prompts.
-fn build_config_interactive() -> Result<KimonoConfig> {
+///
+/// When `name_arg` is provided via CLI, skips the workspace-level prompts
+/// (apps_dir, worktree_dir) and uses defaults. When `bare` is true, skips
+/// the repo prompts entirely (config only, no repos).
+fn build_config_interactive(name_arg: Option<&str>, bare: bool) -> Result<KimonoConfig> {
     ui::header("Kimono workspace setup");
 
-    let name: String = Input::new()
-        .with_prompt("Workspace name")
-        .interact_text()
-        .context("failed to read workspace name")?;
+    let name: String = match name_arg {
+        Some(n) => n.to_string(),
+        None => Input::new()
+            .with_prompt("Workspace name (also the directory name)")
+            .interact_text()
+            .context("failed to read workspace name")?,
+    };
 
-    let apps_dir: String = Input::new()
-        .with_prompt("Apps directory")
-        .default("apps".into())
-        .interact_text()
-        .context("failed to read apps directory")?;
-
-    let worktree_dir: String = Input::new()
-        .with_prompt("Worktree directory")
-        .default(".worktrees".into())
-        .interact_text()
-        .context("failed to read worktree directory")?;
+    // If name was provided via CLI, use defaults for dir settings.
+    let (apps_dir, worktree_dir) = if name_arg.is_some() {
+        ("apps".to_string(), ".worktrees".to_string())
+    } else {
+        let apps: String = Input::new()
+            .with_prompt("Apps directory")
+            .default("apps".into())
+            .interact_text()
+            .context("failed to read apps directory")?;
+        let wt: String = Input::new()
+            .with_prompt("Worktree directory")
+            .default(".worktrees".into())
+            .interact_text()
+            .context("failed to read worktree directory")?;
+        (apps, wt)
+    };
 
     let mut repos = HashMap::new();
 
     loop {
+        if bare {
+            break;
+        }
         let add_repo = Confirm::new()
             .with_prompt("Add a repo?")
             .default(repos.is_empty()) // default yes for first repo
@@ -256,77 +306,3 @@ fn build_config_interactive() -> Result<KimonoConfig> {
     })
 }
 
-/// Generate all context files for the workspace.
-///
-/// This is a shared helper also used by add and remove commands.
-pub fn generate_context(config: &KimonoConfig, workspace_root: &Path) -> Result<()> {
-    let tera = crate::context::create_tera()?;
-    let claude_dir = workspace_root.join(".claude");
-
-    ui::header("Generating context files");
-
-    // 1. CLAUDE.md
-    let claude_md = crate::context::claude_md::generate(config, &tera)
-        .context("failed to generate CLAUDE.md")?;
-    let claude_md_path = workspace_root.join("CLAUDE.md");
-    if claude_md_path.is_file() {
-        let existing = fs::read_to_string(&claude_md_path)
-            .with_context(|| format!("failed to read {}", claude_md_path.display()))?;
-        let merged = crate::context::preserve::merge(&claude_md, &existing);
-        fs::write(&claude_md_path, &merged)?;
-        ui::success("Updated CLAUDE.md");
-    } else {
-        fs::write(&claude_md_path, &claude_md)?;
-        ui::success("Created CLAUDE.md");
-    }
-
-    // 2. Agent files
-    let agents = crate::context::agents::generate_all(config, &tera)
-        .context("failed to generate agent files")?;
-    for (name, content) in &agents {
-        let dir = claude_dir.join("agents").join(name);
-        fs::create_dir_all(&dir)?;
-        fs::write(dir.join("AGENT.md"), content)?;
-        ui::success(&format!("Created .claude/agents/{}/AGENT.md", name));
-    }
-
-    // 3. Skill files — repo skills
-    let repo_skills = crate::context::skills::generate_repo_skills(config, &tera)
-        .context("failed to generate repo skills")?;
-    for (name, content) in &repo_skills {
-        let dir = claude_dir.join("skills").join(name);
-        fs::create_dir_all(&dir)?;
-        fs::write(dir.join("SKILL.md"), content)?;
-        ui::success(&format!("Created .claude/skills/{}/SKILL.md", name));
-    }
-
-    // 3b. Skill files — workflow skills
-    let workflow_skills = crate::context::skills::generate_workflow_skills(config, &tera)
-        .context("failed to generate workflow skills")?;
-    for (name, content) in &workflow_skills {
-        let dir = claude_dir.join("skills").join(name);
-        fs::create_dir_all(&dir)?;
-        fs::write(dir.join("SKILL.md"), content)?;
-        ui::success(&format!("Created .claude/skills/{}/SKILL.md", name));
-    }
-
-    // 4. settings.json
-    let settings =
-        crate::context::settings::generate(config).context("failed to generate settings.json")?;
-    fs::create_dir_all(&claude_dir)?;
-    let settings_path = claude_dir.join("settings.json");
-    fs::write(&settings_path, &settings)?;
-    ui::success("Created .claude/settings.json");
-
-    // 5. Hookify rules
-    let rules = crate::context::hookify::generate_all(config, &tera)
-        .context("failed to generate hookify rules")?;
-    let hookify_dir = claude_dir.join("hookify");
-    fs::create_dir_all(&hookify_dir)?;
-    for (filename, content) in &rules {
-        fs::write(hookify_dir.join(filename), content)?;
-        ui::success(&format!("Created .claude/hookify/{}", filename));
-    }
-
-    Ok(())
-}

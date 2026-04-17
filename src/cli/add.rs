@@ -78,8 +78,10 @@ pub fn run(name: &str, remote: &str, branch: Option<&str>) -> Result<()> {
         }
     }
 
-    // Regenerate context files
-    super::init::generate_context(&cfg, &workspace_root)?;
+    // Regenerate context files via the canonical generate path so that
+    // unchanged files are correctly reported as "Unchanged" rather than
+    // always as "Created".
+    crate::cli::context::generate::run(false)?;
 
     ui::header("Done");
     ui::info(&format!("Repo '{}' added to workspace", name));

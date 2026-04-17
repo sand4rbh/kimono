@@ -28,17 +28,26 @@ pub fn run(force: bool) -> Result<()> {
             let existing = fs::read_to_string(&target)
                 .with_context(|| format!("failed to read {}", target.display()))?;
             let merged = context::preserve::merge(&content, &existing);
-            fs::write(&target, &merged)
-                .with_context(|| format!("failed to write {}", target.display()))?;
-            ui::success(&format!("Updated {}", relative_display(&target, &root)));
-            updated_count += 1;
-            merged
+            if merged == existing {
+                ui::skip(&format!("Unchanged {}", relative_display(&target, &root)));
+                merged
+            } else {
+                fs::write(&target, &merged)
+                    .with_context(|| format!("failed to write {}", target.display()))?;
+                ui::success(&format!("Updated {}", relative_display(&target, &root)));
+                updated_count += 1;
+                merged
+            }
         } else {
-            fs::write(&target, &content)
+            // On initial creation, write the merged form (merge of generated
+            // with empty existing) so that subsequent regenerates are
+            // idempotent — they produce the same bytes as what's on disk.
+            let merged = context::preserve::merge(&content, "");
+            fs::write(&target, &merged)
                 .with_context(|| format!("failed to write {}", target.display()))?;
             ui::success(&format!("Created {}", relative_display(&target, &root)));
             generated_count += 1;
-            content
+            merged
         };
         let _ = final_content;
     }
@@ -122,10 +131,22 @@ pub fn run(force: bool) -> Result<()> {
                 .with_context(|| format!("failed to read {}", target.display()))?;
 
             let merged = merge_settings_json(&existing_raw, &content)?;
-            fs::write(&target, &merged)
-                .with_context(|| format!("failed to write {}", target.display()))?;
-            ui::success(&format!("Updated {}", relative_display(&target, &root)));
-            updated_count += 1;
+
+            // Compare semantically as JSON so whitespace/key-ordering
+            // differences don't cause a spurious "Updated" report.
+            let existing_value: serde_json::Value = serde_json::from_str(&existing_raw)
+                .context("failed to parse existing settings.json")?;
+            let merged_value: serde_json::Value = serde_json::from_str(&merged)
+                .context("failed to parse merged settings.json")?;
+
+            if existing_value == merged_value {
+                ui::skip(&format!("Unchanged {}", relative_display(&target, &root)));
+            } else {
+                fs::write(&target, &merged)
+                    .with_context(|| format!("failed to write {}", target.display()))?;
+                ui::success(&format!("Updated {}", relative_display(&target, &root)));
+                updated_count += 1;
+            }
         } else {
             fs::write(&target, &content)
                 .with_context(|| format!("failed to write {}", target.display()))?;

@@ -18,9 +18,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize a new kimono workspace in the current directory
+    /// Initialize a new kimono workspace (creates a directory named after the workspace)
     Init {
-        /// Path to an existing kimono.yaml to bootstrap from
+        /// Workspace name (also used as the directory name). If omitted, prompted interactively.
+        name: Option<String>,
+
+        /// Path to an existing ofmono-style .repos.conf to bootstrap from
         #[arg(long)]
         from: Option<PathBuf>,
 
@@ -251,7 +254,9 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Init { from, bare } => cli::init::run(from.as_deref(), bare),
+        Commands::Init { name, from, bare } => {
+            cli::init::run(name.as_deref(), from.as_deref(), bare)
+        }
         Commands::Add {
             name,
             remote,
