@@ -1,0 +1,76 @@
+# {{ workspace.name }}
+
+<!-- kimono:start:overview -->
+## Overview
+
+**{{ workspace.name }}** is a multi-repo workspace managed by [kimono](https://github.com/anthropics/kimono).
+It contains **{{ repos | length }}** repositories under `{{ workspace.apps_dir }}/`.
+{% if description %}
+{{ description }}
+{% endif %}
+<!-- kimono:end:overview -->
+
+<!-- kimono:start:registry -->
+## Repository Registry
+
+| Repo | Description | Tech Stack | Default Branch |
+|------|-------------|------------|----------------|
+{% for name, repo in repos %}| `{{ name }}` | {{ repo.description | default(value="—") }} | {{ repo.tech | join(sep=", ") | default(value="—") }} | `{{ repo.branch }}` |
+{% endfor %}
+<!-- kimono:end:registry -->
+
+<!-- kimono:start:dependencies -->
+## Dependencies
+
+{% set has_deps = false %}{% for name, repo in repos %}{% if repo.depends_on | length > 0 %}{% set_global has_deps = true %}{% endif %}{% endfor %}{% if has_deps %}The following dependency relationships exist between repos:
+
+{% for name, repo in repos %}{% if repo.depends_on | length > 0 %}- **{{ name }}** depends on: {{ repo.depends_on | join(sep=", ") }}
+{% endif %}{% endfor %}{% else %}No inter-repo dependencies are configured.
+{% endif %}
+<!-- kimono:end:dependencies -->
+
+<!-- kimono:start:commands -->
+## Commands
+
+{% for name, repo in repos %}{% if repo.commands | length > 0 %}### {{ name }}
+
+| Command | Script |
+|---------|--------|
+{% for cmd_name, cmd_value in repo.commands %}| `{{ cmd_name }}` | `{{ cmd_value }}` |
+{% endfor %}
+{% endif %}{% endfor %}
+<!-- kimono:end:commands -->
+
+{% if dispatch %}
+<!-- kimono:start:dispatch -->
+## Agent Dispatch
+
+When a task targets a specific repository, dispatch to the corresponding agent:
+
+{% for name, repo in repos %}- Tasks for **{{ name }}** -> use the `{{ name }}` agent (`.claude/agents/{{ name }}/AGENT.md`)
+{% endfor %}
+Use the root agent for cross-repo tasks or tasks that span multiple repositories.
+<!-- kimono:end:dispatch -->
+{% endif %}
+
+<!-- kimono:start:worktrees -->
+## Worktrees
+
+This workspace uses git worktrees for parallel feature development.
+
+### Naming Convention
+
+Worktrees are stored in `{{ workspace.worktree_dir }}/` and follow the pattern:
+```
+{{ workspace.worktree_dir }}/<repo>--<branch-slug>/
+```
+
+### Workflow
+
+1. **Create feature worktrees**: `kimono wt feature <branch-name> --new`
+2. **Work in worktrees**: Each worktree is a fully independent checkout
+3. **List worktrees**: `kimono wt list`
+4. **Clean up**: `kimono wt clean --merged`
+
+When working on a feature branch, always use the worktree directory rather than the main checkout in `{{ workspace.apps_dir }}/`.
+<!-- kimono:end:worktrees -->

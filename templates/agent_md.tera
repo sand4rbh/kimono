@@ -1,0 +1,49 @@
+---
+name: {{ name }}
+type: general-purpose
+model: opus
+description: >
+  Agent for {{ name }}{% if repo.description %} — {{ repo.description }}{% endif %}
+
+---
+
+# {{ name }} Agent
+
+{% if repo.description %}{{ repo.description }}{% endif %}
+
+## Tech Stack
+
+{% if repo.tech | length > 0 %}{% for t in repo.tech %}- {{ t }}
+{% endfor %}{% else %}No specific tech stack configured.
+{% endif %}
+
+{% if repo.package_manager %}## Package Manager
+
+This repo uses **{{ repo.package_manager }}**.
+{% endif %}
+
+## Commands
+
+{% if repo.commands | length > 0 %}| Command | Script |
+|---------|--------|
+{% for cmd_name, cmd_value in repo.commands %}| `{{ cmd_name }}` | `{{ cmd_value }}` |
+{% endfor %}{% else %}No commands configured for this repo.
+{% endif %}
+
+## Working Directory
+
+The main checkout for this repo is at `{{ apps_dir }}/{{ name }}/`.
+
+When working on a feature branch, use the worktree at:
+```
+{{ worktree_dir }}/<repo>--<branch-slug>/{{ name }}/
+```
+
+Always verify you are in the correct directory before making changes.
+
+{% if repo.depends_on | length > 0 %}## Dependencies
+
+This repo depends on: {{ repo.depends_on | join(sep=", ") }}.
+
+When making changes, consider the impact on dependent services.
+{% endif %}

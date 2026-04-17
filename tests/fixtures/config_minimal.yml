@@ -1,0 +1,5 @@
+workspace:
+  name: my-project
+repos:
+  api:
+    remote: git@github.com:me/api.git

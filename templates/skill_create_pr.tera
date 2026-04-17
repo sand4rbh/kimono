@@ -1,0 +1,34 @@
+---
+name: create-pr
+description: >
+  Create pull requests across workspace repositories using kimono.
+user-invocable: true
+---
+
+# /create-pr Skill
+
+Use this skill when the user asks you to create a pull request.
+
+## Workflow
+
+1. **Check status**: Run `kimono status` to identify repos with changes pushed to remote.
+
+2. **Push changes**: Ensure all commits are pushed:
+   ```bash
+   cd {{ apps_dir }}/<repo>/ && git push -u origin <branch>
+   ```
+
+3. **Create PR**: For each repo with changes, create a pull request:
+   ```bash
+   cd {{ apps_dir }}/<repo>/ && gh pr create --title "<title>" --body "<body>"
+   ```
+
+4. **Link PRs**: If changes span multiple repos, mention related PRs in each PR description.
+
+## Guidelines
+
+- Write a clear PR title (under 70 characters).
+- Include a summary of changes in the PR body.
+- Reference any related issues.
+- If the changes depend on PRs in other repos, note the dependency.
+- Use `--draft` for work-in-progress PRs.

@@ -1,0 +1,36 @@
+---
+name: {{ name }}
+description: >
+  Dispatch tasks to the {{ name }} repo agent.{% if repo.description %} {{ repo.description }}.{% endif %}
+
+user-invocable: true
+agent: {{ name }}
+---
+
+# {{ name }} Skill
+
+Use this skill when the user asks you to work on the **{{ name }}** repository.
+
+## Routing
+
+1. Check if you are currently in a worktree for a feature branch:
+   - If yes, work in the worktree directory: `{{ worktree_dir }}/<repo>--<branch>/{{ name }}/`
+   - If no, work in the main checkout: `{{ apps_dir }}/{{ name }}/`
+
+2. Dispatch the task to the **{{ name }}** agent.
+
+{% if repo.tech | length > 0 %}## Tech Stack
+
+{{ repo.tech | join(sep=", ") }}
+{% endif %}
+
+{% if repo.commands | length > 0 %}## Available Commands
+
+{% for cmd_name, cmd_value in repo.commands %}- `{{ cmd_name }}`: `{{ cmd_value }}`
+{% endfor %}{% endif %}
+
+{% if repo.depends_on | length > 0 %}## Dependencies
+
+This repo depends on: {{ repo.depends_on | join(sep=", ") }}.
+Consider cross-repo impacts when making changes.
+{% endif %}

@@ -1,0 +1,47 @@
+workspace:
+  name: my-platform
+  apps_dir: apps
+  worktree_dir: .worktrees
+
+repos:
+  backend:
+    remote: git@github.com:myorg/backend.git
+    branch: main
+    description: "NestJS GraphQL API"
+    tech: [nestjs, typescript, graphql, postgresql]
+    package_manager: yarn
+    depends_on: []
+    commands:
+      dev: yarn dev
+      lint: yarn lint
+      typecheck: npx tsc --noEmit
+      test: yarn test
+
+  frontend:
+    remote: git@github.com:myorg/frontend.git
+    branch: main
+    description: "Next.js web application"
+    tech: [nextjs, react, typescript]
+    package_manager: pnpm
+    depends_on: [backend]
+    commands:
+      dev: pnpm dev
+      lint: pnpm lint
+
+  mobile:
+    remote: git@github.com:myorg/mobile.git
+    branch: develop
+    description: "React Native mobile app"
+    tech: [react-native, typescript, expo]
+    package_manager: yarn
+    depends_on: [backend]
+    commands:
+      dev: yarn start
+      lint: yarn lint
+      test: yarn test
+
+claude:
+  dispatch: true
+  agents: true
+  skills: true
+  context_style: detailed
