@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use console::style;
@@ -145,7 +145,7 @@ impl FileEntry {
     /// kimono would produce exactly what is already on disk. Otherwise it is
     /// "customized" — the user edited a generated section or added content
     /// that `merge` would not reproduce.
-    fn new_merge(abs_path: PathBuf, root: &PathBuf, generated: &str) -> Self {
+    fn new_merge(abs_path: PathBuf, root: &Path, generated: &str) -> Self {
         let rel_path = relative_display(&abs_path, root);
 
         let status = if !abs_path.is_file() {
@@ -170,7 +170,7 @@ impl FileEntry {
     /// For files that are fully overwritten by generate (no marker-based
     /// merge). "Exists" if on-disk content equals generated content byte-for-
     /// byte; "customized" otherwise.
-    fn new_exact(abs_path: PathBuf, root: &PathBuf, generated: &str) -> Self {
+    fn new_exact(abs_path: PathBuf, root: &Path, generated: &str) -> Self {
         let rel_path = relative_display(&abs_path, root);
 
         let status = if !abs_path.is_file() {
@@ -193,7 +193,7 @@ impl FileEntry {
 
     /// For settings.json — compare as parsed JSON so whitespace/ordering
     /// differences don't mark the file as customized.
-    fn new_json(abs_path: PathBuf, root: &PathBuf, generated: &str) -> Self {
+    fn new_json(abs_path: PathBuf, root: &Path, generated: &str) -> Self {
         let rel_path = relative_display(&abs_path, root);
 
         let status = if !abs_path.is_file() {
@@ -221,7 +221,7 @@ impl FileEntry {
     }
 }
 
-fn relative_display(path: &PathBuf, root: &PathBuf) -> String {
+fn relative_display(path: &Path, root: &Path) -> String {
     path.strip_prefix(root)
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| path.display().to_string())

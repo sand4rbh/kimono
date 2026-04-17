@@ -32,11 +32,12 @@ pub fn run(repos: &[String]) -> Result<()> {
         let branch = git::current_branch(&repo_path).unwrap_or_else(|_| "???".to_string());
         let clean = git::is_clean(&repo_path).unwrap_or(false);
         let (ahead, behind) = git::ahead_behind(&repo_path).unwrap_or((0, 0));
+        let stashes = git::stash_count(&repo_path).unwrap_or(0);
 
         // Count worktrees for this repo by scanning the worktree directory
         let wt_count = count_worktrees_for_repo(&worktree_dir, name);
 
-        let line = ui::format_repo_status(name, &branch, clean, ahead, behind, wt_count);
+        let line = ui::format_repo_status(name, &branch, clean, ahead, behind, wt_count, stashes);
         eprintln!("{}", line);
     }
 

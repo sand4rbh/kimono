@@ -253,6 +253,11 @@ enum ContextCommands {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    // Fast-fail if `git` isn't available on PATH. Clap handles --help and
+    // --version before main runs, so this only affects actual subcommand
+    // dispatch.
+    git::git_available()?;
+
     match cli.command {
         Commands::Init { name, from, bare } => {
             cli::init::run(name.as_deref(), from.as_deref(), bare)

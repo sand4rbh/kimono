@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 
@@ -131,9 +131,9 @@ pub fn run() -> Result<()> {
 
 /// Compare a generated file against what exists on disk.
 fn diff_file(
-    target: &PathBuf,
+    target: &Path,
     generated: &str,
-    root: &PathBuf,
+    root: &Path,
     new_count: &mut u32,
     changed_count: &mut u32,
     unchanged_count: &mut u32,
@@ -160,7 +160,7 @@ fn diff_file(
 }
 
 /// Display a path relative to the workspace root for compact output.
-fn relative_display(path: &PathBuf, root: &PathBuf) -> String {
+fn relative_display(path: &Path, root: &Path) -> String {
     path.strip_prefix(root)
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| path.display().to_string())

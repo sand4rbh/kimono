@@ -42,7 +42,8 @@ pub fn header(msg: &str) {
 
 /// Format a single repo's status line for the status dashboard.
 ///
-/// Returns a formatted string (does not print).
+/// Returns a formatted string (does not print). When `stash_count > 0`, a
+/// trailing `N stashed` annotation is appended.
 pub fn format_repo_status(
     name: &str,
     branch: &str,
@@ -50,6 +51,7 @@ pub fn format_repo_status(
     ahead: u32,
     behind: u32,
     worktree_count: usize,
+    stash_count: u32,
 ) -> String {
     let status_text = if is_clean {
         style("clean".to_string()).green().to_string()
@@ -76,14 +78,21 @@ pub fn format_repo_status(
         "worktrees"
     };
 
+    let stash_suffix = if stash_count > 0 {
+        format!("  {}", style(format!("{} stashed", stash_count)).cyan())
+    } else {
+        String::new()
+    };
+
     format!(
-        "  {:<16}{:<12}{:<14}  {:<18}{} {}",
+        "  {:<16}{:<12}{:<14}  {:<18}{} {}{}",
         style(name).bold(),
         branch,
         status_text,
         sync_text,
         worktree_count,
         wt_label,
+        stash_suffix,
     )
 }
 
@@ -208,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_format_repo_status_clean() {
-        let output = format_repo_status("backend", "main", true, 0, 0, 2);
+        let output = format_repo_status("backend", "main", true, 0, 0, 2, 0);
         let plain = console::strip_ansi_codes(&output).to_string();
 
         assert!(plain.contains("backend"), "should contain the repo name");
@@ -219,11 +228,15 @@ mod tests {
             "should say up to date when ahead=0 and behind=0"
         );
         assert!(plain.contains("2 worktrees"), "should list worktree count");
+        assert!(
+            !plain.contains("stashed"),
+            "should omit stash annotation when stash_count=0"
+        );
     }
 
     #[test]
     fn test_format_repo_status_dirty() {
-        let output = format_repo_status("frontend", "develop", false, 1, 3, 1);
+        let output = format_repo_status("frontend", "develop", false, 1, 3, 1, 0);
         let plain = console::strip_ansi_codes(&output).to_string();
 
         assert!(plain.contains("frontend"), "should contain the repo name");
@@ -237,6 +250,17 @@ mod tests {
         assert!(
             plain.contains("1 worktree"),
             "should list worktree count (singular)"
+        );
+    }
+
+    #[test]
+    fn test_format_repo_status_with_stashes() {
+        let output = format_repo_status("backend", "main", true, 0, 0, 0, 2);
+        let plain = console::strip_ansi_codes(&output).to_string();
+
+        assert!(
+            plain.contains("2 stashed"),
+            "should show stash count when stash_count > 0"
         );
     }
 

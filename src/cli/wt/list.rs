@@ -21,12 +21,17 @@ pub fn run(repo: Option<&str>) -> Result<()> {
         }
     }
 
+    let apps_dir = root.join(&cfg.workspace.apps_dir);
     let wt_dir = root.join(&cfg.workspace.worktree_dir);
 
     if !wt_dir.is_dir() {
         ui::info("No worktrees found.");
         return Ok(());
     }
+
+    // Canonicalize the workspace worktree dir so we can reliably compare
+    // against the absolute paths returned by `git worktree list --porcelain`.
+    let canonical_wt_dir = fs::canonicalize(&wt_dir).unwrap_or_else(|_| wt_dir.clone());
 
     // Read and filter directory entries
     let mut entries: Vec<(String, String, std::path::PathBuf)> = Vec::new();
@@ -71,6 +76,34 @@ pub fn run(repo: Option<&str>) -> Result<()> {
     // Sort entries by repo name, then branch
     entries.sort_by(|a, b| (&a.0, &a.1).cmp(&(&b.0, &b.1)));
 
+    // For each distinct repo appearing in `entries`, query `git worktree list
+    // --porcelain` once and build a map from canonicalized worktree path to
+    // WorktreeInfo. This lets us report authoritative branch/commit info
+    // straight from git rather than re-deriving it via per-worktree calls.
+    let mut repo_names_present: Vec<String> = entries.iter().map(|(r, _, _)| r.clone()).collect();
+    repo_names_present.sort();
+    repo_names_present.dedup();
+
+    let mut wt_info: HashMap<std::path::PathBuf, git::WorktreeInfo> = HashMap::new();
+    for repo_name in &repo_names_present {
+        let repo_path = apps_dir.join(repo_name);
+        if !repo_path.is_dir() {
+            continue;
+        }
+        let Ok(infos) = git::worktree_list(&repo_path) else {
+            continue;
+        };
+        for info in infos {
+            // Keep only worktrees that live under the workspace worktree dir;
+            // the main checkout in apps/ and any stray external worktrees are
+            // not relevant to `kimono wt list`.
+            let canonical = fs::canonicalize(&info.path).unwrap_or_else(|_| info.path.clone());
+            if canonical.starts_with(&canonical_wt_dir) {
+                wt_info.insert(canonical, info);
+            }
+        }
+    }
+
     // Print header
     let title = match repo {
         Some(r) => format!("Worktrees for '{}'", r),
@@ -81,9 +114,16 @@ pub fn run(repo: Option<&str>) -> Result<()> {
     // Print each entry with status info
     for (entry_repo, entry_branch, path) in &entries {
         let dir_name = format!("{}--{}", entry_repo, entry_branch);
+        let canonical_path = fs::canonicalize(path).unwrap_or_else(|_| path.clone());
 
-        // Try to get git status info from the worktree directory
-        let branch = git::current_branch(path).unwrap_or_else(|_| entry_branch.clone());
+        // Prefer the branch name reported by git worktree list (authoritative,
+        // handles slashes in branch names correctly). Fall back to the slug
+        // parsed from the directory name.
+        let branch = wt_info
+            .get(&canonical_path)
+            .map(|i| i.branch.clone())
+            .unwrap_or_else(|| entry_branch.clone());
+
         let (ahead, _behind) = git::ahead_behind(path).unwrap_or((0, 0));
         let clean = git::is_clean(path).unwrap_or(true);
 

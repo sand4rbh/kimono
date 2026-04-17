@@ -15,7 +15,6 @@ use anyhow::{bail, Context, Result};
 pub struct WorktreeInfo {
     pub path: PathBuf,
     pub branch: String,
-    pub commit: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -24,7 +23,6 @@ pub struct WorktreeInfo {
 
 struct CommandOutput {
     stdout: String,
-    stderr: String,
 }
 
 /// Run a git command inside `repo_path` via `git -C <path> <args…>`.
@@ -37,13 +35,13 @@ fn run_git(repo_path: &Path, args: &[&str]) -> Result<CommandOutput> {
         .context("Failed to execute git")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         bail!("git {} failed: {}", args.join(" "), stderr);
     }
 
-    Ok(CommandOutput { stdout, stderr })
+    Ok(CommandOutput { stdout })
 }
 
 /// Run a git command without a repo path (e.g. `git clone`).
@@ -54,13 +52,13 @@ fn run_git_raw(args: &[&str]) -> Result<CommandOutput> {
         .context("Failed to execute git")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         bail!("git {} failed: {}", args.join(" "), stderr);
     }
 
-    Ok(CommandOutput { stdout, stderr })
+    Ok(CommandOutput { stdout })
 }
 
 // ---------------------------------------------------------------------------
@@ -114,13 +112,6 @@ pub fn is_clean(repo_path: &Path) -> Result<bool> {
     let out = run_git(repo_path, &["status", "--porcelain"])
         .context("Failed to check working tree status")?;
     Ok(out.stdout.is_empty())
-}
-
-/// Return the raw `git status --porcelain` output.
-pub fn status_porcelain(repo_path: &Path) -> Result<String> {
-    let out =
-        run_git(repo_path, &["status", "--porcelain"]).context("Failed to get porcelain status")?;
-    Ok(out.stdout)
 }
 
 /// Return `(ahead, behind)` relative to the upstream tracking branch.
@@ -227,35 +218,28 @@ pub fn worktree_list(repo_path: &Path) -> Result<Vec<WorktreeInfo>> {
 /// HEAD abc123def456
 /// branch refs/heads/main
 /// ```
-/// Blocks are separated by blank lines.
+/// Blocks are separated by blank lines. The `HEAD` line is ignored — we only
+/// extract `worktree` (path) and `branch`.
 fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
     let mut results = Vec::new();
     let mut path: Option<PathBuf> = None;
-    let mut commit: Option<String> = None;
     let mut branch: Option<String> = None;
 
     for line in output.lines() {
         if line.is_empty() {
-            // End of a block — flush if we have all three fields.
-            if let (Some(p), Some(c), Some(b)) = (path.take(), commit.take(), branch.take()) {
-                results.push(WorktreeInfo {
-                    path: p,
-                    branch: b,
-                    commit: c,
-                });
+            // End of a block — flush if we have both fields.
+            if let (Some(p), Some(b)) = (path.take(), branch.take()) {
+                results.push(WorktreeInfo { path: p, branch: b });
             }
             // Reset for next block even if we didn't have all fields
             // (e.g. a bare worktree or detached HEAD).
             path = None;
-            commit = None;
             branch = None;
             continue;
         }
 
         if let Some(rest) = line.strip_prefix("worktree ") {
             path = Some(PathBuf::from(rest));
-        } else if let Some(rest) = line.strip_prefix("HEAD ") {
-            commit = Some(rest.to_string());
         } else if let Some(rest) = line.strip_prefix("branch ") {
             // Strip `refs/heads/` prefix to give a short branch name.
             branch = Some(rest.strip_prefix("refs/heads/").unwrap_or(rest).to_string());
@@ -263,12 +247,8 @@ fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
     }
 
     // Flush the last block (porcelain output may not end with a blank line).
-    if let (Some(p), Some(c), Some(b)) = (path, commit, branch) {
-        results.push(WorktreeInfo {
-            path: p,
-            branch: b,
-            commit: c,
-        });
+    if let (Some(p), Some(b)) = (path, branch) {
+        results.push(WorktreeInfo { path: p, branch: b });
     }
 
     results
@@ -314,15 +294,8 @@ pub fn checkout(repo_path: &Path, branch: &str) -> Result<()> {
     Ok(())
 }
 
-/// Delete a local branch (safe delete — refuses if not merged).
-pub fn delete_branch(repo_path: &Path, branch: &str) -> Result<()> {
-    run_git(repo_path, &["branch", "-d", branch])
-        .with_context(|| format!("Failed to delete branch {}", branch))?;
-    Ok(())
-}
-
 // ---------------------------------------------------------------------------
-// Push / Log
+// Push
 // ---------------------------------------------------------------------------
 
 /// Push a branch to origin with upstream tracking.
@@ -332,34 +305,6 @@ pub fn push(repo_path: &Path, branch: &str) -> Result<()> {
     Ok(())
 }
 
-/// Return `git log --oneline` entries. Optionally filter by `range`
-/// (e.g. `origin/main..HEAD`) and limit the number of results.
-pub fn log_oneline(
-    repo_path: &Path,
-    range: Option<&str>,
-    limit: Option<u32>,
-) -> Result<Vec<String>> {
-    let mut args = vec!["log", "--oneline"];
-
-    let limit_str;
-    if let Some(n) = limit {
-        limit_str = format!("{}", n);
-        args.push("-n");
-        args.push(&limit_str);
-    }
-
-    if let Some(r) = range {
-        args.push(r);
-    }
-
-    let out = run_git(repo_path, &args).context("Failed to read git log")?;
-    if out.stdout.is_empty() {
-        Ok(Vec::new())
-    } else {
-        Ok(out.stdout.lines().map(|l| l.to_string()).collect())
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
@@ -367,12 +312,6 @@ pub fn log_oneline(
 /// Convert a branch name into a worktree-safe slug by replacing `/` with `-`.
 pub fn branch_slug(branch: &str) -> String {
     branch.replace('/', "-")
-}
-
-/// Stage all changes (`git add -A`).
-pub fn add_all(repo_path: &Path) -> Result<()> {
-    run_git(repo_path, &["add", "-A"]).context("Failed to stage changes")?;
-    Ok(())
 }
 
 /// Create a commit with the given message.
@@ -436,17 +375,9 @@ branch refs/heads/feature-x
 
         assert_eq!(worktrees[0].path, PathBuf::from("/path/to/main"));
         assert_eq!(worktrees[0].branch, "main");
-        assert_eq!(
-            worktrees[0].commit,
-            "abc123def456789012345678901234567890abcd"
-        );
 
         assert_eq!(worktrees[1].path, PathBuf::from("/path/to/feature"));
         assert_eq!(worktrees[1].branch, "feature-x");
-        assert_eq!(
-            worktrees[1].commit,
-            "def456abc789012345678901234567890abcd1234"
-        );
     }
 
     #[test]

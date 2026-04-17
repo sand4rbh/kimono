@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 
@@ -190,9 +190,9 @@ pub fn run(force: bool) -> Result<()> {
 /// Write a file to disk, respecting the force flag. For non-CLAUDE.md files
 /// we simply overwrite when content differs (no marker-based merge needed).
 fn write_file(
-    target: &PathBuf,
+    target: &Path,
     content: &str,
-    root: &PathBuf,
+    root: &Path,
     force: bool,
     generated_count: &mut u32,
     updated_count: &mut u32,
@@ -238,7 +238,7 @@ fn merge_settings_json(existing_raw: &str, generated_raw: &str) -> Result<String
 }
 
 /// Display a path relative to the workspace root for compact output.
-fn relative_display(path: &PathBuf, root: &PathBuf) -> String {
+fn relative_display(path: &Path, root: &Path) -> String {
     path.strip_prefix(root)
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| path.display().to_string())

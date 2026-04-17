@@ -17,7 +17,6 @@ pub struct PrInfo {
     pub url: String,
     pub state: String,
     pub title: String,
-    pub head_branch: String,
 }
 
 #[derive(Debug, Clone)]
@@ -104,7 +103,7 @@ pub fn pr_create(
 pub fn pr_view(repo_path: &Path) -> Result<Option<PrInfo>> {
     let output = Command::new("gh")
         .current_dir(repo_path)
-        .args(["pr", "view", "--json", "number,url,state,title,headRefName"])
+        .args(["pr", "view", "--json", "number,url,state,title"])
         .output()
         .context("Failed to execute gh pr view")?;
 
@@ -132,7 +131,6 @@ pub fn pr_view(repo_path: &Path) -> Result<Option<PrInfo>> {
     let url = v["url"].as_str().unwrap_or("").to_string();
     let state = v["state"].as_str().unwrap_or("").to_string();
     let title = v["title"].as_str().unwrap_or("").to_string();
-    let head_branch = v["headRefName"].as_str().unwrap_or("").to_string();
 
     if number == 0 {
         return Ok(None);
@@ -143,7 +141,6 @@ pub fn pr_view(repo_path: &Path) -> Result<Option<PrInfo>> {
         url,
         state,
         title,
-        head_branch,
     }))
 }
 
@@ -251,14 +248,6 @@ pub fn pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ReviewComment
     }
 
     Ok(comments)
-}
-
-/// Update a PR's description body.
-pub fn pr_update_body(repo_path: &Path, pr_number: u32, body: &str) -> Result<()> {
-    let number_str = pr_number.to_string();
-    run_gh(repo_path, &["pr", "edit", &number_str, "--body", body])
-        .context("Failed to update PR body")?;
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------
