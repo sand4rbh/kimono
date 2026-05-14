@@ -80,9 +80,10 @@ pub fn remove(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Update one or more installed skills: re-run install if the registry's
-/// version is higher than the installed version. Empty `names` updates all
-/// installed skills.
+/// Update one or more installed skills: re-run install if the registry version
+/// differs from the recorded installed version. Empty `names` updates all
+/// installed skills. Skills listed in the workspace but absent from the
+/// registry produce a warning on stderr (or an error if named explicitly).
 pub fn update(names: &[String]) -> Result<()> {
     let cfg = config::load_and_validate()?;
     let installed = cfg
@@ -91,6 +92,7 @@ pub fn update(names: &[String]) -> Result<()> {
         .map(|p| p.installed.clone())
         .unwrap_or_default();
 
+    let names_explicit = !names.is_empty();
     let targets: Vec<String> = if names.is_empty() {
         installed.keys().cloned().collect()
     } else {
@@ -111,10 +113,23 @@ pub fn update(names: &[String]) -> Result<()> {
     let index = registry::load_index(&cache)?;
 
     for name in &targets {
-        if let Some(entry) = index.skills.iter().find(|s| s.name == *name) {
-            let current = installed.get(name).cloned().unwrap_or_default();
-            if entry.version != current {
-                install(name, None)?;
+        match index.skills.iter().find(|s| s.name == *name) {
+            Some(entry) => {
+                let current = installed.get(name).cloned().unwrap_or_default();
+                if entry.version != current {
+                    install(name, None)?;
+                }
+            }
+            None => {
+                if names_explicit {
+                    anyhow::bail!(
+                        "skill '{name}' is installed locally but not present in the registry; cannot update"
+                    );
+                } else {
+                    eprintln!(
+                        "warning: skill '{name}' is installed locally but not present in the registry; skipping"
+                    );
+                }
             }
         }
     }
