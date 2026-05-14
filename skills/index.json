@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "name": "bootstrap",
+      "description": "Initial AI context setup — minimal CLAUDE.md and per-project AGENT.md from config + manifests.",
+      "version": "1.0.0",
+      "tags": ["init", "context", "setup"],
+      "path": "skills/bootstrap",
+      "default": true
+    },
+    {
+      "name": "discover",
+      "description": "Deep codebase scan that augments CLAUDE.md and AGENT.md with architecture, patterns, and domain vocabulary.",
+      "version": "1.0.0",
+      "tags": ["context", "analysis"],
+      "path": "skills/discover"
+    },
+    {
+      "name": "git-commit",
+      "description": "Stage and commit changes in worktrees with contextual messages.",
+      "version": "1.0.0",
+      "tags": ["git", "workflow"],
+      "path": "skills/git-commit"
+    },
+    {
+      "name": "create-pr",
+      "description": "Push branch and open a PR via gh, populating title/description from commits and cross-repo context.",
+      "version": "1.0.0",
+      "tags": ["git", "github", "workflow"],
+      "path": "skills/create-pr"
+    },
+    {
+      "name": "update-pr",
+      "description": "Push commits and update an existing PR; report check and review state.",
+      "version": "1.0.0",
+      "tags": ["git", "github", "workflow"],
+      "path": "skills/update-pr"
+    },
+    {
+      "name": "code-review",
+      "description": "Fetch PR review comments and structure them for the agent to address.",
+      "version": "1.0.0",
+      "tags": ["github", "workflow"],
+      "path": "skills/code-review"
+    },
+    {
+      "name": "hookify-rules",
+      "description": "Generate .claude/hookify/ rules that enforce the read-only master pattern. Depends on the hookify plugin.",
+      "version": "1.0.0",
+      "tags": ["hooks", "enforcement"],
+      "path": "skills/hookify-rules"
+    }
+  ]
+}

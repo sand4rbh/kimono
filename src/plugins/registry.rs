@@ -5,9 +5,12 @@ use serde::Deserialize;
 
 pub const DEFAULT_REGISTRY_URL: &str = "https://github.com/sand4rbh/kimono";
 
+/// The highest `schema_version` this build of kimono can read.
+/// Bump in lock-step with breaking changes to `skills/index.json`.
+pub const SUPPORTED_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Index {
-    #[allow(dead_code)] // parsed for forward-compat; not yet read by runtime
     pub schema_version: u32,
     pub skills: Vec<SkillEntry>,
 }
@@ -32,12 +35,23 @@ pub fn cache_dir() -> Result<PathBuf> {
 }
 
 /// Parse a registry's `skills/index.json` from a cache root.
+///
+/// Fails if the index's `schema_version` is newer than this build understands,
+/// pointing the user at upgrading kimono rather than reading partial data.
 pub fn load_index(cache: &Path) -> Result<Index> {
     let path = cache.join("skills").join("index.json");
     let raw = std::fs::read_to_string(&path)
         .with_context(|| format!("failed to read {}", path.display()))?;
     let index: Index = serde_json::from_str(&raw)
         .with_context(|| format!("failed to parse {}", path.display()))?;
+    if index.schema_version > SUPPORTED_SCHEMA_VERSION {
+        anyhow::bail!(
+            "skills/index.json schema_version {} is newer than this build supports ({}). \
+             Upgrade kimono.",
+            index.schema_version,
+            SUPPORTED_SCHEMA_VERSION
+        );
+    }
     Ok(index)
 }
 
@@ -123,5 +137,28 @@ mod tests {
         let dir_str = dir.display().to_string();
         assert!(dir_str.contains("kimono"), "{dir_str}");
         assert!(dir_str.ends_with("registry"), "{dir_str}");
+    }
+
+    #[test]
+    fn test_load_index_from_repo_catalog() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let repo_root = std::path::Path::new(manifest_dir);
+        let index = load_index(repo_root).expect("failed to parse repo skills/index.json");
+        assert_eq!(index.schema_version, 1);
+        assert_eq!(index.skills.len(), 7, "expected 7 skills in catalog");
+        let names: Vec<&str> = index.skills.iter().map(|s| s.name.as_str()).collect();
+        for required in &[
+            "bootstrap",
+            "discover",
+            "git-commit",
+            "create-pr",
+            "update-pr",
+            "code-review",
+            "hookify-rules",
+        ] {
+            assert!(names.contains(required), "missing skill: {required}");
+        }
+        let bootstrap = index.skills.iter().find(|s| s.name == "bootstrap").unwrap();
+        assert_eq!(bootstrap.default, Some(true));
     }
 }
