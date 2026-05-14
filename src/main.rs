@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod git;
+mod plugins;
 mod ui;
 
 use clap::{Parser, Subcommand};
