@@ -123,6 +123,11 @@ enum Commands {
         command: PluginsCommands,
     },
 
+    /// Run the bootstrap skill via Claude Code (shell-out)
+    Bootstrap,
+    /// Run the discover skill via Claude Code (shell-out)
+    Discover,
+
     /// Manage cross-repo context for Claude Code
     Context {
         #[command(subcommand)]
@@ -287,6 +292,8 @@ fn main() -> anyhow::Result<()> {
             PluginsCommands::Remove { names } => cli::plugins::remove::run(&names),
             PluginsCommands::Update { names } => cli::plugins::update::run(&names),
         },
+        Commands::Bootstrap => cli::bootstrap::run(),
+        Commands::Discover => cli::discover::run(),
         Commands::Context { command } => match command {
             ContextCommands::Show => cli::context::show::run(),
         },

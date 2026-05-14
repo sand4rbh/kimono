@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 
 /// Returns true if `claude` is on PATH.
-#[allow(dead_code)] // wired up by Task 7 (`kimono bootstrap`/`discover` shortcuts)
 pub fn is_available() -> bool {
     which::which("claude").is_ok()
 }
@@ -11,7 +10,6 @@ pub fn is_available() -> bool {
 ///
 /// Returns an error if `claude` is not available, or if the invocation
 /// exits non-zero.
-#[allow(dead_code)] // wired up by Task 7 (`kimono bootstrap`/`discover` shortcuts)
 pub fn run_skill(skill_name: &str) -> Result<()> {
     if !is_available() {
         anyhow::bail!(

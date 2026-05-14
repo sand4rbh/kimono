@@ -1,7 +1,9 @@
 pub mod add;
+pub mod bootstrap;
 pub mod branch;
 pub mod clone;
 pub mod context;
+pub mod discover;
 pub mod exec;
 pub mod init;
 pub mod plugins;
