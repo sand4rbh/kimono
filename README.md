@@ -13,21 +13,27 @@ Kimono wraps multiple git repositories into a single workspace with shared conte
 
 ## Status
 
-Pre-alpha. v2 plugin model implemented, not yet released.
+v0.2.0 — the v2 plugin model is live. See the [release notes](https://github.com/sand4rbh/kimono/releases/tag/v0.2.0).
 
 ## Install
 
-Requires Rust 1.75+. For now, build from source:
+Requires Rust 1.75+.
 
 ```bash
-git clone <this-repo> kimono
+cargo install --git https://github.com/sand4rbh/kimono --tag v0.2.0
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/sand4rbh/kimono
 cd kimono
 cargo install --path .
 ```
 
 This installs the `kimono` binary to `~/.cargo/bin/`.
 
-Also requires `git` for repo operations and `claude` (Claude Code) for the `bootstrap` and `discover` shortcuts.
+Also requires `git` for repo operations and `claude` ([Claude Code](https://claude.com/claude-code)) for the `bootstrap` and `discover` shortcuts.
 
 ## Quick Start
 
