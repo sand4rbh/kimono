@@ -7,6 +7,7 @@ use anyhow::{bail, Context, Result};
 use dialoguer::{Confirm, Input};
 
 use crate::config::schema::{KimonoConfig, Repo, Workspace};
+use crate::plugins;
 use crate::ui;
 
 /// Run the `init` command.
@@ -63,8 +64,7 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
         .with_context(|| format!("failed to write {}", config_path.display()))?;
     ui::success("Created .kimono/config.yml");
 
-    // Write .gitignore — a minimal hardcoded version. The full template-driven
-    // version is being rewritten as part of the v2 init wizard rework (Task 9).
+    // Write a minimal .gitignore covering the apps and worktree directories.
     let gitignore_content = format!(
         "# Kimono workspace\n{}\n{}\n",
         config.workspace.apps_dir,
@@ -110,6 +110,64 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
             .current_dir(&workspace_root)
             .output();
         ui::success("Initialized git repository");
+
+        // Required: install bootstrap skill
+        ui::info("Installing required skill: bootstrap…");
+        if let Err(e) = plugins::install::install("bootstrap", None) {
+            ui::warn(&format!(
+                "Failed to install bootstrap from the registry ({e}). \
+                 Run `kimono plugins install bootstrap` once you have network access."
+            ));
+        } else {
+            ui::success("Installed bootstrap");
+        }
+
+        // Optional: default skill bundle
+        let install_defaults = dialoguer::Confirm::new()
+            .with_prompt(
+                "Install default skills (discover, git-commit, create-pr, update-pr, code-review, hookify-rules)?",
+            )
+            .default(true)
+            .interact()
+            .unwrap_or(true);
+        if install_defaults {
+            let bundle = [
+                "discover",
+                "git-commit",
+                "create-pr",
+                "update-pr",
+                "code-review",
+                "hookify-rules",
+            ];
+            for name in bundle {
+                match plugins::install::install(name, None) {
+                    Ok(()) => ui::success(&format!("Installed {name}")),
+                    Err(e) => ui::warn(&format!("Failed to install {name}: {e}")),
+                }
+            }
+        }
+
+        // Optional: shell out to claude to run bootstrap right now
+        if plugins::claude_shell::is_available() {
+            let run_now = dialoguer::Confirm::new()
+                .with_prompt("Run bootstrap skill now to generate AI context?")
+                .default(true)
+                .interact()
+                .unwrap_or(false);
+            if run_now {
+                if let Err(e) = plugins::claude_shell::run_skill("bootstrap") {
+                    ui::warn(&format!("Bootstrap shell-out failed: {e}"));
+                }
+            } else {
+                ui::info("Run `kimono bootstrap` later to generate AI context.");
+            }
+        } else {
+            ui::info(
+                "Claude Code CLI not detected on PATH. Run `kimono bootstrap` after installing it.",
+            );
+        }
+
+        ui::info("Tip: run `kimono discover` later to enrich AI context with deep codebase analysis.");
     }
 
     // Print summary
