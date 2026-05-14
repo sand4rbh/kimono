@@ -122,7 +122,10 @@ repos:
     remote: git@github.com:me/api.git
 "#;
         let result: Result<KimonoConfig, _> = serde_yaml::from_str(yaml);
-        assert!(result.is_err(), "should error when workspace.name is missing");
+        assert!(
+            result.is_err(),
+            "should error when workspace.name is missing"
+        );
     }
 
     #[test]

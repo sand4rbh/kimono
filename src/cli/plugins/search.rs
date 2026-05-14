@@ -27,7 +27,10 @@ pub fn run(query: &str) -> Result<()> {
         }
     }
 
-    ui::header(&format!("Search results for '{query}' ({} hits)", hits.len()));
+    ui::header(&format!(
+        "Search results for '{query}' ({} hits)",
+        hits.len()
+    ));
     for skill in hits {
         println!(
             "  {:<18} {:<8} {}",

@@ -139,7 +139,9 @@ pub fn update(names: &[String]) -> Result<()> {
 fn record_installed(root: &Path, cfg: &KimonoConfig, name: &str, version: &str) -> Result<()> {
     let mut new_cfg = cfg.clone();
     let plugins = new_cfg.plugins.get_or_insert_with(PluginsConfig::default);
-    plugins.installed.insert(name.to_string(), version.to_string());
+    plugins
+        .installed
+        .insert(name.to_string(), version.to_string());
     write_config(root, &new_cfg)
 }
 

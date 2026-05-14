@@ -21,8 +21,7 @@ use crate::ui;
 ///
 /// When `bare` is true, only the config is written (no cloning).
 pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()> {
-    let parent_dir =
-        std::env::current_dir().context("failed to determine current directory")?;
+    let parent_dir = std::env::current_dir().context("failed to determine current directory")?;
 
     let config = if let Some(conf_dir) = from {
         build_config_from_repos_conf(conf_dir, name_arg)?
@@ -45,10 +44,16 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
         }
     } else {
         fs::create_dir(&workspace_root).with_context(|| {
-            format!("failed to create workspace directory '{}'", config.workspace.name)
+            format!(
+                "failed to create workspace directory '{}'",
+                config.workspace.name
+            )
         })?;
     }
-    ui::success(&format!("Created workspace directory: {}", config.workspace.name));
+    ui::success(&format!(
+        "Created workspace directory: {}",
+        config.workspace.name
+    ));
 
     // chdir into the workspace so later operations resolve paths relative to it.
     std::env::set_current_dir(&workspace_root)
@@ -67,8 +72,7 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
     // Write a minimal .gitignore covering the apps and worktree directories.
     let gitignore_content = format!(
         "# Kimono workspace\n{}\n{}\n",
-        config.workspace.apps_dir,
-        config.workspace.worktree_dir,
+        config.workspace.apps_dir, config.workspace.worktree_dir,
     );
     let gitignore_path = workspace_root.join(".gitignore");
     fs::write(&gitignore_path, &gitignore_content)
@@ -167,7 +171,9 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
             );
         }
 
-        ui::info("Tip: run `kimono discover` later to enrich AI context with deep codebase analysis.");
+        ui::info(
+            "Tip: run `kimono discover` later to enrich AI context with deep codebase analysis.",
+        );
     }
 
     // Print summary
@@ -357,4 +363,3 @@ fn build_config_interactive(name_arg: Option<&str>, bare: bool) -> Result<Kimono
         plugins: None,
     })
 }
-

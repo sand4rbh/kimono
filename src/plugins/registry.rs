@@ -77,7 +77,10 @@ pub fn ensure_cache(url: &str) -> Result<PathBuf> {
             .status()
             .with_context(|| format!("failed to run `git pull` in {}", cache.display()))?;
         if !status.success() {
-            anyhow::bail!("`git pull` failed for registry cache at {}", cache.display());
+            anyhow::bail!(
+                "`git pull` failed for registry cache at {}",
+                cache.display()
+            );
         }
     } else {
         // Fresh clone

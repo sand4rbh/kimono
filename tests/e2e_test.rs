@@ -60,12 +60,7 @@ fn make_bare_repo(root: &Path, name: &str) -> PathBuf {
     );
     git_run(
         &seed_path,
-        &[
-            "push",
-            "-q",
-            bare_path.to_str().unwrap(),
-            "main",
-        ],
+        &["push", "-q", bare_path.to_str().unwrap(), "main"],
     );
 
     bare_path
@@ -192,7 +187,10 @@ repos:
     );
     assert_success(&out, "wt feature --new");
     assert!(
-        workspace.join(".worktrees").join("backend--payments").is_dir(),
+        workspace
+            .join(".worktrees")
+            .join("backend--payments")
+            .is_dir(),
         "backend--payments worktree should exist"
     );
     assert!(
@@ -203,7 +201,10 @@ repos:
         "frontend--payments worktree should exist"
     );
     assert!(
-        !workspace.join(".worktrees").join("mobile--payments").is_dir(),
+        !workspace
+            .join(".worktrees")
+            .join("mobile--payments")
+            .is_dir(),
         "mobile--payments should NOT exist (not requested)"
     );
 
@@ -212,7 +213,10 @@ repos:
     assert_success(&out, "wt list");
     let co = combined_output(&out);
     assert!(co.contains("backend--payments"), "wt list missing backend");
-    assert!(co.contains("frontend--payments"), "wt list missing frontend");
+    assert!(
+        co.contains("frontend--payments"),
+        "wt list missing frontend"
+    );
     assert!(
         co.contains("Features"),
         "wt list should show Features section for multi-repo branch"
@@ -248,11 +252,16 @@ repos:
     // ── kimono wt feature payments --remove ──────────────────────────────
     let out = run_kimono(
         &workspace,
-        &["wt", "feature", "payments", "backend", "frontend", "--remove"],
+        &[
+            "wt", "feature", "payments", "backend", "frontend", "--remove",
+        ],
     );
     assert_success(&out, "wt feature --remove");
     assert!(
-        !workspace.join(".worktrees").join("backend--payments").is_dir(),
+        !workspace
+            .join(".worktrees")
+            .join("backend--payments")
+            .is_dir(),
         "backend--payments worktree should be removed"
     );
     assert!(
