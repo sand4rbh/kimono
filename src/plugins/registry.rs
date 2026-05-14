@@ -46,6 +46,9 @@ pub fn load_index(cache: &Path) -> Result<Index> {
 /// into it. Otherwise, `git pull --ff-only` to refresh.
 pub fn ensure_cache(url: &str) -> Result<PathBuf> {
     let cache = cache_dir()?;
+    let cache_str = cache
+        .to_str()
+        .context("registry cache path is not valid UTF-8")?;
     if let Some(parent) = cache.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("failed to create {}", parent.display()))?;
@@ -55,7 +58,7 @@ pub fn ensure_cache(url: &str) -> Result<PathBuf> {
     if git_dir.is_dir() {
         // Existing cache — pull
         let status = std::process::Command::new("git")
-            .args(["-C", cache.to_str().unwrap(), "pull", "--ff-only", "--quiet"])
+            .args(["-C", cache_str, "pull", "--ff-only", "--quiet"])
             .status()
             .with_context(|| format!("failed to run `git pull` in {}", cache.display()))?;
         if !status.success() {
@@ -69,13 +72,7 @@ pub fn ensure_cache(url: &str) -> Result<PathBuf> {
                 .with_context(|| format!("failed to remove stale cache {}", cache.display()))?;
         }
         let status = std::process::Command::new("git")
-            .args([
-                "clone",
-                "--depth",
-                "1",
-                url,
-                cache.to_str().unwrap(),
-            ])
+            .args(["clone", "--depth", "1", url, cache_str])
             .status()
             .context("failed to run `git clone` for registry")?;
         if !status.success() {
@@ -91,7 +88,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test_load_index_parses_seven_skills() {
+    fn test_load_index_parses_valid_json() {
         let dir = TempDir::new().unwrap();
         let skills_dir = dir.path().join("skills");
         std::fs::create_dir_all(&skills_dir).unwrap();
