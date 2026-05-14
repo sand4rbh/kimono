@@ -7,6 +7,7 @@ pub const DEFAULT_REGISTRY_URL: &str = "https://github.com/sand4rbh/kimono";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Index {
+    #[allow(dead_code)] // parsed for forward-compat; not yet read by runtime
     pub schema_version: u32,
     pub skills: Vec<SkillEntry>,
 }

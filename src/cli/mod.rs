@@ -4,6 +4,7 @@ pub mod clone;
 pub mod context;
 pub mod exec;
 pub mod init;
+pub mod plugins;
 pub mod remove;
 pub mod status;
 pub mod sync;

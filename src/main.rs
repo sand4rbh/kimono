@@ -116,6 +116,13 @@ enum Commands {
         command: WtCommands,
     },
 
+    /// Manage installable Claude skills (alias: `skills`)
+    #[command(alias = "skills")]
+    Plugins {
+        #[command(subcommand)]
+        command: PluginsCommands,
+    },
+
     /// Manage cross-repo context for Claude Code
     Context {
         #[command(subcommand)]
@@ -188,6 +195,34 @@ enum ContextCommands {
     Show,
 }
 
+#[derive(Subcommand)]
+enum PluginsCommands {
+    /// List available or installed skills
+    List {
+        /// Show only installed skills
+        #[arg(long, conflicts_with = "available")]
+        installed: bool,
+        /// Show only skills not yet installed
+        #[arg(long)]
+        available: bool,
+    },
+    /// Search the registry by name, description, or tag
+    Search { query: String },
+    /// Show details for a single skill
+    Info { name: String },
+    /// Install one or more skills into this workspace
+    Install {
+        names: Vec<String>,
+        /// Pin to a specific version (must match registry)
+        #[arg(long)]
+        version: Option<String>,
+    },
+    /// Remove one or more installed skills
+    Remove { names: Vec<String> },
+    /// Update installed skills against the registry
+    Update { names: Vec<String> },
+}
+
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
@@ -229,6 +264,28 @@ fn main() -> anyhow::Result<()> {
                 remove,
             } => cli::wt::feature::run(&name, &repos, new, remove),
             WtCommands::Clean { merged, dry_run } => cli::wt::clean::run(merged, dry_run),
+        },
+        Commands::Plugins { command } => match command {
+            PluginsCommands::List {
+                installed,
+                available,
+            } => {
+                let scope = if installed {
+                    cli::plugins::list::Scope::Installed
+                } else if available {
+                    cli::plugins::list::Scope::Available
+                } else {
+                    cli::plugins::list::Scope::All
+                };
+                cli::plugins::list::run(scope)
+            }
+            PluginsCommands::Search { query } => cli::plugins::search::run(&query),
+            PluginsCommands::Info { name } => cli::plugins::info::run(&name),
+            PluginsCommands::Install { names, version } => {
+                cli::plugins::install::run(&names, version.as_deref())
+            }
+            PluginsCommands::Remove { names } => cli::plugins::remove::run(&names),
+            PluginsCommands::Update { names } => cli::plugins::update::run(&names),
         },
         Commands::Context { command } => match command {
             ContextCommands::Show => cli::context::show::run(),
