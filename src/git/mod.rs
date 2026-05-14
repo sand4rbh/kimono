@@ -295,44 +295,12 @@ pub fn checkout(repo_path: &Path, branch: &str) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// Push
-// ---------------------------------------------------------------------------
-
-/// Push a branch to origin with upstream tracking.
-pub fn push(repo_path: &Path, branch: &str) -> Result<()> {
-    run_git(repo_path, &["push", "-u", "origin", branch])
-        .with_context(|| format!("Failed to push branch {}", branch))?;
-    Ok(())
-}
-
-// ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
 
 /// Convert a branch name into a worktree-safe slug by replacing `/` with `-`.
 pub fn branch_slug(branch: &str) -> String {
     branch.replace('/', "-")
-}
-
-/// Create a commit with the given message.
-pub fn commit(repo_path: &Path, message: &str) -> Result<()> {
-    run_git(repo_path, &["commit", "-m", message]).context("Failed to commit")?;
-    Ok(())
-}
-
-/// Return `true` if there are staged changes ready to commit.
-///
-/// `git diff --cached --quiet` exits with code 1 when staged changes exist.
-pub fn has_staged_changes(repo_path: &Path) -> Result<bool> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repo_path)
-        .args(["diff", "--cached", "--quiet"])
-        .output()
-        .context("Failed to execute git diff --cached")?;
-
-    // Exit code 0 → no staged changes; exit code 1 → has staged changes.
-    Ok(!output.status.success())
 }
 
 // ---------------------------------------------------------------------------

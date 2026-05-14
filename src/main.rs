@@ -1,8 +1,6 @@
 mod cli;
 mod config;
-mod context;
 mod git;
-mod github;
 mod ui;
 
 use clap::{Parser, Subcommand};
@@ -111,57 +109,6 @@ enum Commands {
         no_checkout: bool,
     },
 
-    /// Commit changes across repositories
-    Commit {
-        /// Specific repos to commit in (default: all)
-        repos: Vec<String>,
-
-        /// Feature name to associate the commit with
-        #[arg(long)]
-        feature: Option<String>,
-
-        /// Commit message
-        #[arg(short, long)]
-        message: Option<String>,
-    },
-
-    /// Create pull requests across repositories
-    #[command(name = "create-pr")]
-    CreatePr {
-        /// Specific repos to create PRs for (default: all)
-        repos: Vec<String>,
-
-        /// Feature name to associate the PR with
-        #[arg(long)]
-        feature: Option<String>,
-
-        /// Create as draft PR
-        #[arg(long)]
-        draft: bool,
-    },
-
-    /// Update existing pull requests across repositories
-    #[command(name = "update-pr")]
-    UpdatePr {
-        /// Specific repos to update PRs for (default: all)
-        repos: Vec<String>,
-
-        /// Feature name to associate the PR with
-        #[arg(long)]
-        feature: Option<String>,
-    },
-
-    /// Show review comments on pull requests
-    #[command(name = "pr-review-comments")]
-    PrReviewComments {
-        /// Specific repos to show comments for (default: all)
-        repos: Vec<String>,
-
-        /// Feature name to filter by
-        #[arg(long)]
-        feature: Option<String>,
-    },
-
     /// Manage git worktrees across repositories
     Wt {
         #[command(subcommand)]
@@ -236,16 +183,6 @@ enum WtCommands {
 
 #[derive(Subcommand)]
 enum ContextCommands {
-    /// Generate cross-repo context files for Claude Code
-    Generate {
-        /// Overwrite existing context files
-        #[arg(long)]
-        force: bool,
-    },
-
-    /// Show diff of context since last generation
-    Diff,
-
     /// Display the current generated context
     Show,
 }
@@ -280,20 +217,6 @@ fn main() -> anyhow::Result<()> {
             from_master,
             no_checkout,
         } => cli::branch::run(&name, &repos, new, list, from_master, no_checkout),
-        Commands::Commit {
-            repos,
-            feature,
-            message,
-        } => cli::commit::run(&repos, feature.as_deref(), message.as_deref()),
-        Commands::CreatePr {
-            repos,
-            feature,
-            draft,
-        } => cli::create_pr::run(&repos, feature.as_deref(), draft),
-        Commands::UpdatePr { repos, feature } => cli::update_pr::run(&repos, feature.as_deref()),
-        Commands::PrReviewComments { repos, feature } => {
-            cli::pr_review_comments::run(&repos, feature.as_deref())
-        }
         Commands::Wt { command } => match command {
             WtCommands::Add { repo, branch, new } => cli::wt::add::run(&repo, &branch, new),
             WtCommands::Remove { repo, branch } => cli::wt::remove::run(&repo, &branch),
@@ -307,8 +230,6 @@ fn main() -> anyhow::Result<()> {
             WtCommands::Clean { merged, dry_run } => cli::wt::clean::run(merged, dry_run),
         },
         Commands::Context { command } => match command {
-            ContextCommands::Generate { force } => cli::context::generate::run(force),
-            ContextCommands::Diff => cli::context::diff::run(),
             ContextCommands::Show => cli::context::show::run(),
         },
     }

@@ -1,5 +1,0 @@
-{
-  "additionalDirectories": [
-{% for name, repo in repos %}    "{{ apps_dir }}/{{ name }}"{% if not loop.last %},{% endif %}
-{% endfor %}  ]
-}

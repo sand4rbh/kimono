@@ -9,7 +9,6 @@ use crate::ui;
 ///
 /// - Removes the repo entry from `.kimono/config.yml`.
 /// - If `--delete` is set, also removes the cloned directory and any worktrees.
-/// - Regenerates context files.
 pub fn run(name: &str, delete: bool) -> Result<()> {
     let config_path = config::find_config()?;
     let workspace_root = config_path
@@ -82,11 +81,6 @@ pub fn run(name: &str, delete: bool) -> Result<()> {
             ui::success(&format!("Deleted .claude/skills/{}", name));
         }
     }
-
-    // Regenerate context files via the canonical generate path so that
-    // unchanged files are correctly reported as "Unchanged" rather than
-    // always as "Created".
-    crate::cli::context::generate::run(false)?;
 
     ui::header("Done");
     ui::info(&format!("Repo '{}' removed from workspace", name));

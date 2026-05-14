@@ -18,8 +18,7 @@ use crate::ui;
 /// - `--from <path>`: migrate from an ofmono `.repos.conf` file.
 /// - Interactive (default): guided wizard to build config from scratch.
 ///
-/// When `bare` is true, only the config is written (no cloning or context
-/// generation).
+/// When `bare` is true, only the config is written (no cloning).
 pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()> {
     let parent_dir =
         std::env::current_dir().context("failed to determine current directory")?;
@@ -50,8 +49,7 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
     }
     ui::success(&format!("Created workspace directory: {}", config.workspace.name));
 
-    // chdir into the workspace so `generate::run()` (which uses `find_config()`
-    // relative to cwd) picks up the new config.
+    // chdir into the workspace so later operations resolve paths relative to it.
     std::env::set_current_dir(&workspace_root)
         .with_context(|| format!("failed to cd into {}", workspace_root.display()))?;
 
@@ -65,13 +63,13 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
         .with_context(|| format!("failed to write {}", config_path.display()))?;
     ui::success("Created .kimono/config.yml");
 
-    // Write .gitignore using the Tera template
-    let tera = crate::context::create_tera()?;
-    let mut ctx = tera::Context::new();
-    ctx.insert("workspace", &config.workspace);
-    let gitignore_content = tera
-        .render("gitignore", &ctx)
-        .context("failed to render .gitignore template")?;
+    // Write .gitignore — a minimal hardcoded version. The full template-driven
+    // version is being rewritten as part of the v2 init wizard rework (Task 9).
+    let gitignore_content = format!(
+        "# Kimono workspace\n{}\n{}\n",
+        config.workspace.apps_dir,
+        config.workspace.worktree_dir,
+    );
     let gitignore_path = workspace_root.join(".gitignore");
     fs::write(&gitignore_path, &gitignore_content)
         .with_context(|| format!("failed to write {}", gitignore_path.display()))?;
@@ -105,10 +103,6 @@ pub fn run(name_arg: Option<&str>, from: Option<&Path>, bare: bool) -> Result<()
                 }
             }
         }
-
-        // Generate context files via the canonical generate path. The config
-        // was written to disk above so `generate::run` can load it.
-        crate::cli::context::generate::run(false)?;
 
         // Initialize git repo (ignore errors if already a git repo)
         let _ = Command::new("git")
