@@ -1,8 +1,8 @@
 [package]
 name = "kimono"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Multi-repo aggregator for AI-assisted development with Claude Code"
+description = "AI Developer Lifecycle wrapper for codebases — single or multi-repo — with an installable Claude skill catalog"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

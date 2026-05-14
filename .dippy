@@ -1,7 +1,9 @@
 # Dippy config for kimono (Rust CLI project)
+
 # Global defaults (utilities, git, runtimes, safety) in ~/.dippy/config
 
 # ─── Rust toolchain ─────────────────────────────────────────────
+
 allow cargo build
 allow cargo run
 allow cargo test
@@ -22,10 +24,12 @@ allow rustup
 allow rustfmt
 
 # ─── Cargo with env sourcing ────────────────────────────────────
+
 allow source "$HOME/.cargo/env"
 allow source $HOME/.cargo/env
 
 # ─── Git (project-specific) ────────────────────────────────────
+
 allow git fetch
 allow git pull
 allow git clone
@@ -33,12 +37,16 @@ allow git worktree
 allow git ls-remote
 
 # ─── GitHub CLI ─────────────────────────────────────────────────
+
 allow gh pr
 allow gh api
 allow gh repo
 
 # ─── Project scripts ───────────────────────────────────────────
+
 allow /Users/sandarbh/data/code/kimono/target/debug/kimono
 allow /Users/sandarbh/data/code/kimono/target/release/kimono
 allow ./target/debug/kimono
 allow ./target/release/kimono
+
+allow just install
