@@ -2,18 +2,18 @@
 
 > Multi-repo aggregator for AI-assisted development with Claude Code.
 
-Kimono wraps multiple git repositories into a single workspace with shared context, worktree-based development, and generated Claude Code configuration. You get monorepo-like AI context while keeping polyrepo independence for CI/CD, deployment, and ownership.
+Kimono wraps multiple git repositories into a single workspace with shared context, worktree-based development, and an installable plugin (skill) system for Claude Code. You get monorepo-like AI context while keeping polyrepo independence for CI/CD, deployment, and ownership.
 
 ## What it does
 
 1. Clones your repos into `apps/` (read-only, always on default branch — the source of truth AI agents read from)
 2. All active development happens in git worktrees under `.worktrees/`
-3. Generates Claude Code configuration (`CLAUDE.md`, agents, skills, hookify rules) from a single YAML config
-4. Provides CLI commands for cross-repo operations: clone, sync, status, branching, worktrees, commits, PRs
+3. Installs Claude Code skills (plugins) from a registry into `.claude/skills/` — the binary stages, the skills author your context, commits, PRs, hooks, etc.
+4. Provides CLI commands for cross-repo operations: clone, sync, status, branching, worktrees
 
 ## Status
 
-Pre-alpha. Core features implemented, not yet released.
+Pre-alpha. v2 plugin model implemented, not yet released.
 
 ## Install
 
@@ -27,47 +27,23 @@ cargo install --path .
 
 This installs the `kimono` binary to `~/.cargo/bin/`.
 
-Also requires `git` (for all repo operations) and `gh` (for PR commands).
+Also requires `git` for repo operations and `claude` (Claude Code) for the `bootstrap` and `discover` shortcuts.
 
-## Quick start
+## Quick Start
 
 ```bash
-# In an empty directory, set up a new workspace
-mkdir my-platform && cd my-platform
-kimono init
+# Install
+cargo install --path .
 
-# Or migrate from an existing ofmono-style setup
-kimono init --from ~/path/to/ofmono
+# Initialize a workspace (interactive)
+kimono init my-workspace
+cd my-workspace
 
-# Add a repo later
-kimono add backend git@github.com:myorg/backend.git
+# After init, generate AI context
+kimono bootstrap
 
-# Clone all repos
-kimono clone
-
-# Check status across all repos (like git status, but multi-repo)
-kimono status
-
-# Sync all repos with their remotes
-kimono sync
-
-# Create a cross-repo feature with coordinated worktrees
-kimono wt feature payments backend frontend --new
-
-# Commit across all worktrees for a feature
-kimono commit --feature payments -m "Add payment processing"
-
-# Create PRs across all repos in the feature
-kimono create-pr --feature payments
-
-# See PR review comments (for AI agents to address)
-kimono pr-review-comments --feature payments
-
-# Regenerate Claude Code context files after config changes
-kimono context generate
-
-# Clean up merged worktrees
-kimono wt clean --merged
+# Later, when you want richer context
+kimono discover
 ```
 
 ## Config
@@ -97,56 +73,37 @@ repos:
     depends_on: [backend]
     commands:
       dev: pnpm dev
+
+plugins:
+  installed:
+    bootstrap: 1.0.0
+    discover: 1.0.0
+    git-commit: 1.0.0
+    create-pr: 1.0.0
+    update-pr: 1.0.0
+    code-review: 1.0.0
+    hookify-rules: 1.0.0
 ```
 
 Only `workspace.name` and `repos.<name>.remote` are required. Everything else has sensible defaults.
 
 ## Commands
 
-### Workspace
-
-| Command | Description |
-|---------|-------------|
-| `kimono init [--from <path>] [--bare]` | Interactive workspace setup |
-| `kimono add <name> <remote> [--branch <branch>]` | Add a repo to the workspace |
-| `kimono remove <name> [--delete]` | Remove a repo from the workspace |
-
-### Repos
-
-| Command | Description |
-|---------|-------------|
-| `kimono clone [repos...]` | Clone repos from config |
-| `kimono sync [repos...] [--fetch-only]` | Fetch + rebase all repos |
-| `kimono status [repos...]` | Git status across repos (local-only, like `git status`) |
-| `kimono exec <cmd> [repos...]` | Run a shell command in each repo |
-| `kimono branch <name> [repos...] [--new] [--from-master] [--list]` | Branch across repos |
-
-### Worktrees
-
-| Command | Description |
-|---------|-------------|
-| `kimono wt add <repo> <branch> [--new]` | Create a worktree |
-| `kimono wt remove <repo> <branch>` | Remove a worktree |
-| `kimono wt list [repo]` | List worktrees |
-| `kimono wt feature <name> [repos...] [--new] [--remove]` | Cross-repo feature worktrees |
-| `kimono wt clean [--merged] [--dry-run]` | Clean merged/stale worktrees |
-
-### Git workflow
-
-| Command | Description |
-|---------|-------------|
-| `kimono commit [repos...] [--feature <name>] [-m <msg>]` | Commit across worktrees |
-| `kimono create-pr [repos...] [--feature <name>] [--draft]` | Create PRs |
-| `kimono update-pr [repos...] [--feature <name>]` | Push + report PR status |
-| `kimono pr-review-comments [repos...] [--feature <name>]` | Show PR review comments |
-
-### Claude Code context
-
-| Command | Description |
-|---------|-------------|
-| `kimono context generate [--force]` | Generate Claude Code config files |
-| `kimono context diff` | Show what would change |
-| `kimono context show` | Show which context files exist |
+| Command | What it does |
+|---------|--------------|
+| `kimono init [name]` | Interactive workspace setup |
+| `kimono add <name> <remote>` | Add a repo |
+| `kimono clone` | Clone all repos from config |
+| `kimono sync` | Fetch + rebase all repos |
+| `kimono status` | Working tree state across repos |
+| `kimono exec <cmd>` | Run a shell command per repo |
+| `kimono branch <name>` | Branch across repos |
+| `kimono wt feature <name>` | Create cross-repo worktrees for a feature |
+| `kimono bootstrap` | Generate initial AI context via Claude Code |
+| `kimono discover` | Deep codebase scan for richer AI context |
+| `kimono plugins list` | List available / installed skills |
+| `kimono plugins install <name>...` | Install one or more skills |
+| `kimono context show` | Status of installed skills + context files |
 
 ## How it works
 
@@ -156,13 +113,18 @@ A kimono workspace is a git repo that acts as an orchestrator:
 my-platform/
 ├── .kimono/
 │   └── config.yml              # Workspace config
-├── CLAUDE.md                   # Generated root context (preserves custom sections)
+├── CLAUDE.md                   # Authored or generated by the bootstrap skill
 ├── .claude/
 │   ├── settings.json           # additionalDirectories for Claude Code
-│   ├── agents/<repo>/AGENT.md  # Per-repo agent definitions
-│   ├── skills/<repo>/SKILL.md  # Per-repo dispatcher skills
-│   ├── skills/commit/SKILL.md  # Workflow skills (commit, create-pr, etc.)
-│   └── hookify/                # Read-only master enforcement
+│   ├── skills/                 # Installed skills (one directory per skill)
+│   │   ├── bootstrap/SKILL.md
+│   │   ├── discover/SKILL.md
+│   │   ├── git-commit/SKILL.md
+│   │   ├── create-pr/SKILL.md
+│   │   ├── update-pr/SKILL.md
+│   │   ├── code-review/SKILL.md
+│   │   └── hookify-rules/SKILL.md
+│   └── hookify/                # Optional — produced by the hookify-rules skill
 ├── apps/                       # Read-only clones (always on default branch)
 │   ├── backend/
 │   └── frontend/
@@ -173,16 +135,16 @@ my-platform/
 
 ### Read-only master pattern
 
-`apps/` is never directly modified — it stays on the default branch and serves as a clean reference. AI agents read cross-repo context from `apps/` (e.g., frontend reads backend's API types) while writing code in `.worktrees/`. Generated hookify rules enforce this at the tool level.
+`apps/` is never directly modified — it stays on the default branch and serves as a clean reference. AI agents read cross-repo context from `apps/` (e.g., frontend reads backend's API types) while writing code in `.worktrees/`. The `hookify-rules` skill installs hookify rules that enforce this at the tool level.
 
-### Preserved custom sections
+### Plugins / skills
 
-`kimono context generate` uses marker comments (`<!-- kimono:start:section -->` / `<!-- kimono:end:section -->`) so you can add your own content to `CLAUDE.md` without it being overwritten on regeneration.
+Kimono ships seven default skills (`bootstrap`, `discover`, `git-commit`, `create-pr`, `update-pr`, `code-review`, `hookify-rules`) that are fetched via shallow clone from a registry and installed into `.claude/skills/`. Each skill is a directory with a `SKILL.md` Claude Code reads at session start. Versions are pinned per-workspace in `plugins.installed` so collaborators get the same behavior. Use `kimono plugins install <name>` to add more from the registry, or point `plugins.registry` at your own.
 
 ## Docs
 
-- [Full feature spec](docs/specs/20260417-v1-spec.md) — config format, all commands, generated files
-- [Implementation plan](docs/plans/20260417-v1-implementation-plan.md) — phased build, parallelization, dependency graph
+- [Full feature spec](docs/specs/20260421-v2-spec.md) — config format, all commands, plugin model
+- [Implementation plan](docs/plans/20260514-v2-implementation-plan.md) — phased build, parallelization, dependency graph
 - [Rust learning notes](docs/learning/) — notes written as we built kimono
 
 ## License
