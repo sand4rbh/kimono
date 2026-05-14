@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::process::Command;
 
 use anyhow::{Context, Result};
 
@@ -7,15 +7,15 @@ pub fn is_available() -> bool {
     which::which("claude").is_ok()
 }
 
-/// Shell out to `claude -p "Run the kimono <name> skill for this workspace"`
-/// non-interactively. Stdout/stderr stream to the parent terminal; stdin is
-/// closed so the child cannot block waiting on it.
+/// Launch an interactive Claude Code session with the kimono skill prompt as
+/// the first user message. We deliberately do NOT use `claude -p` here:
+/// `-p` buffers the full response before printing, hiding the per-tool
+/// progress (file reads, edits, bash) that's the whole point of running a
+/// skill in real time. Interactive mode gives the user the full TUI — they
+/// see every file Claude reads, every edit, every command — and can
+/// intervene or quit at any point.
 ///
-/// Pre-allows the file-system and shell tools the bootstrap/discover skills
-/// need so the run doesn't gate on an invisible permission prompt.
-///
-/// Returns an error if `claude` is not available, or if the invocation
-/// exits non-zero.
+/// All stdio inherits from the parent terminal so the TUI renders directly.
 pub fn run_skill(skill_name: &str) -> Result<()> {
     if !is_available() {
         anyhow::bail!(
@@ -29,21 +29,17 @@ pub fn run_skill(skill_name: &str) -> Result<()> {
     );
 
     eprintln!(
-        "  Spawning `claude -p` to run the {skill_name} skill — this may take a minute as Claude reads your codebase and writes the files."
+        "  Launching Claude Code with the {skill_name} prompt — exit the session with /exit when done."
     );
 
-    let status = std::process::Command::new("claude")
-        .arg("-p")
+    let status = Command::new("claude")
         .arg(&prompt)
-        .arg("--allowedTools")
-        .arg("Read Write Edit Bash Glob Grep")
-        .stdin(Stdio::null())
         .status()
-        .with_context(|| format!("failed to spawn `claude -p` for skill {skill_name}"))?;
+        .with_context(|| format!("failed to spawn `claude` for skill {skill_name}"))?;
 
     if !status.success() {
         anyhow::bail!(
-            "`claude -p` for skill '{skill_name}' exited with status {}",
+            "`claude` for skill '{skill_name}' exited with status {}",
             status
         );
     }
