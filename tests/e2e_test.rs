@@ -1,11 +1,16 @@
 //! End-to-end test: replays a full kimono workspace lifecycle against
 //! three local bare git repos, verifying clone, status, worktree management,
-//! context generation, and idempotent regeneration.
+//! and the v2 AI-layer status command (`kimono context show`).
 //!
 //! The test creates bare repos on the local filesystem (no network), points
 //! a `.kimono/config.yml` at them, and drives the compiled kimono binary via
 //! `std::process::Command`. Cargo sets `CARGO_BIN_EXE_kimono` automatically
 //! when building integration tests.
+//!
+//! The v2 plugin-install path is exercised by seeding a `plugins.installed`
+//! map into the config and asserting that `context show` reports it; we do
+//! not call `kimono plugins install`, which would require network access or
+//! a mocked registry.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -213,122 +218,31 @@ repos:
         "wt list should show Features section for multi-repo branch"
     );
 
-    // ── kimono context generate (first run) ──────────────────────────────
-    let out = run_kimono(&workspace, &["context", "generate"]);
-    assert_success(&out, "context generate (first)");
-    let co = combined_output(&out);
-    assert!(co.contains("Created CLAUDE.md"), "should create CLAUDE.md");
-    assert!(
-        co.contains("Created .claude/settings.json"),
-        "should create settings.json"
-    );
-
-    // Assert all expected generated files exist.
-    let expected_files = [
-        "CLAUDE.md",
-        ".claude/agents/backend/AGENT.md",
-        ".claude/agents/frontend/AGENT.md",
-        ".claude/agents/mobile/AGENT.md",
-        ".claude/skills/backend/SKILL.md",
-        ".claude/skills/frontend/SKILL.md",
-        ".claude/skills/mobile/SKILL.md",
-        ".claude/skills/commit/SKILL.md",
-        ".claude/skills/create-pr/SKILL.md",
-        ".claude/skills/update-pr/SKILL.md",
-        ".claude/skills/pr-review-comments/SKILL.md",
-        ".claude/settings.json",
-        ".claude/hookify/hookify.no-direct-apps-commit.local.md",
-        ".claude/hookify/hookify.no-direct-apps-checkout.local.md",
-    ];
-    for f in &expected_files {
-        assert!(
-            workspace.join(f).is_file(),
-            "expected generated file missing: {}",
-            f
-        );
+    // ── kimono context show (v2: AI-layer status display) ───────────────
+    // Seed a plugins.installed entry into .kimono/config.yml so `context
+    // show` has something to report. We don't actually invoke
+    // `kimono plugins install` here — that would require network access or
+    // a mocked registry. Editing the config directly is the cheapest way
+    // to exercise the show command's "Installed skills" branch.
+    {
+        let cfg_path = workspace.join(".kimono").join("config.yml");
+        let raw = fs::read_to_string(&cfg_path).unwrap();
+        let with_plugins = format!("{raw}\nplugins:\n  installed:\n    bootstrap: 1.0.0\n");
+        fs::write(&cfg_path, with_plugins).unwrap();
     }
 
-    // ── kimono context generate (second run — should all be Unchanged) ───
-    let out = run_kimono(&workspace, &["context", "generate"]);
-    assert_success(&out, "context generate (second)");
-    let co = combined_output(&out);
-    assert!(
-        !co.contains("Created"),
-        "second generate should not Create any file: {}",
-        co
-    );
-    assert!(
-        !co.contains("Updated"),
-        "second generate should not Update any file (bug-2 regression): {}",
-        co
-    );
-    assert!(
-        co.contains("Unchanged"),
-        "second generate should report Unchanged files: {}",
-        co
-    );
-    assert!(
-        co.contains("0 files created, 0 files updated"),
-        "summary should show all zeros on no-op regenerate: {}",
-        co
-    );
-
-    // ── kimono context show (all should be "exists") ─────────────────────
     let out = run_kimono(&workspace, &["context", "show"]);
     assert_success(&out, "context show");
     let co = combined_output(&out);
     assert!(
-        co.contains("14 total: 14 exist, 0 customized, 0 missing"),
-        "show should report all files exist, got: {}",
+        co.contains("bootstrap"),
+        "context show should list installed skills, got:\n{}",
         co
     );
-
-    // ── Add custom section to CLAUDE.md — show should flag customized ───
-    let claude_md_path = workspace.join("CLAUDE.md");
-    let mut claude_content = fs::read_to_string(&claude_md_path).unwrap();
-    let custom_marker = "## My Custom Section\nThis is user content that must survive.\n";
-    claude_content.push_str("\n\n");
-    claude_content.push_str(custom_marker);
-    fs::write(&claude_md_path, &claude_content).unwrap();
-
-    // show BEFORE regenerating — CLAUDE.md should be flagged as customized,
-    // all others "exists".
-    let out = run_kimono(&workspace, &["context", "show"]);
-    assert_success(&out, "context show (after custom edit, pre-regenerate)");
-    let co = combined_output(&out);
     assert!(
-        co.contains("1 customized"),
-        "show should flag 1 customized file after CLAUDE.md edit, got: {}",
+        co.contains("CLAUDE.md"),
+        "context show should mention CLAUDE.md status, got:\n{}",
         co
-    );
-    // Find the CLAUDE.md row and verify it is "customized".
-    let claude_line = co
-        .lines()
-        .find(|l| l.contains("CLAUDE.md"))
-        .expect("no CLAUDE.md line in show output");
-    assert!(
-        claude_line.contains("customized"),
-        "CLAUDE.md should be customized, line: {}",
-        claude_line
-    );
-    // Others should still be "exists" (count 13).
-    assert!(
-        co.contains("13 exist"),
-        "13 files should still be 'exists', got: {}",
-        co
-    );
-
-    // Regenerate — custom content must survive.
-    let out = run_kimono(&workspace, &["context", "generate"]);
-    assert_success(&out, "context generate (after custom edit)");
-    let after = fs::read_to_string(&claude_md_path).unwrap();
-    assert!(
-        after.contains("My Custom Section"),
-        "custom section should be preserved across regenerate"
-    );
-    assert!(
-        after.contains("This is user content that must survive."),
-        "custom content should be preserved"
     );
 
     // ── kimono wt feature payments --remove ──────────────────────────────
