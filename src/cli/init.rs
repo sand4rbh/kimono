@@ -194,7 +194,7 @@ fn build_config_from_repos_conf(conf_dir: &Path, name_arg: Option<&str>) -> Resu
             worktree_dir: ".worktrees".to_string(),
         },
         repos,
-        claude: None,
+        plugins: None,
     })
 }
 
@@ -296,7 +296,7 @@ fn build_config_interactive(name_arg: Option<&str>, bare: bool) -> Result<Kimono
             worktree_dir,
         },
         repos,
-        claude: None,
+        plugins: None,
     })
 }
 

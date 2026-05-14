@@ -40,8 +40,6 @@ repos:
       lint: yarn lint
       test: yarn test
 
-claude:
-  dispatch: true
-  agents: true
-  skills: true
-  context_style: detailed
+plugins:
+  installed:
+    bootstrap: 1.0.0

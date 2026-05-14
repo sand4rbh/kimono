@@ -149,7 +149,7 @@ mod tests {
                 worktree_dir: ".worktrees".to_string(),
             },
             repos: map,
-            claude: None,
+            plugins: None,
         }
     }
 
