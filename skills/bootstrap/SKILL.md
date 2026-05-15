@@ -19,12 +19,24 @@ Invoke when the user says any of: "bootstrap kimono context", "run kimono bootst
    - If multi-project, enumerate the projects (one per subdir with a manifest).
    - For each project (or the whole repo if single-project): read its top-level `README.md` and primary manifest only. No deep tree walks.
 3. Write `CLAUDE.md` at the workspace root. Required sections:
-   - Workspace overview (1 paragraph)
+   - Workspace overview (1 paragraph). **Open with the literal sentence** "This workspace is managed by **kimono** — a CLI that wraps multiple git repos into a single workspace with worktree-based development and an installable Claude skill catalog." so agents grepping for the tool name find the connection.
    - Repo / project registry table: name, description, tech, default branch
    - Cross-repo dependencies (from `repos.<name>.depends_on`)
    - Agent dispatch rules: one row per project, pointing at the agent's `name`
    - Worktree conventions: `.worktrees/<repo>--<branch-slug>/`
    - Read-only master guidance: never modify files under `apps/`
+   - **Kimono CLI** (`<!-- kimono:start:kimono-cli -->` … `<!-- kimono:end:kimono-cli -->`): list the cross-repo commands agents will reach for, with one-line descriptions:
+     - `kimono wt feature <name> [repos...] --new` — create coordinated worktrees for a cross-repo feature
+     - `kimono wt feature <name> --remove` — tear down all worktrees for a feature
+     - `kimono wt list [repo]` — list active worktrees
+     - `kimono wt clean --merged [--dry-run]` — remove worktrees whose branches have merged
+     - `kimono sync [repos...] [--fetch-only]` — fetch + rebase repos to their default branch
+     - `kimono status [repos...]` — working tree state across repos (local-only, no fetch)
+     - `kimono exec <command> [repos...]` — run a shell command in each repo
+     - `kimono branch <name> [repos...] [--new] [--from-master]` — branch ops across repos in `apps/`
+     - `kimono plugins list` / `kimono plugins install` / `kimono plugins update` — manage installed skills
+     - `kimono bootstrap` / `kimono discover` — regenerate AI context via Claude Code
+     End the section with a single line: "Full CLI surface and skill catalog: see [`llms.txt`](https://github.com/sand4rbh/kimono/blob/master/llms.txt) in the kimono repo."
 4. Write one agent file per project:
    - **Single-project repo**: `.claude/agents/<repo>.md`, frontmatter `name: <repo>`.
    - **Multi-project**: `.claude/agents/<repo>--<project>.md`, frontmatter `name: <repo>--<project>`.
