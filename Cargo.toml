@@ -1,6 +1,6 @@
 [package]
 name = "kimono"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "AI Developer Lifecycle wrapper for codebases — single or multi-repo — with an installable Claude skill catalog"
 
