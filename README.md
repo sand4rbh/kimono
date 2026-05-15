@@ -13,14 +13,14 @@ Kimono wraps multiple git repositories into a single workspace with shared conte
 
 ## Status
 
-v0.3.0 — release skill, plugin picker UX, llms.txt, and a Kimono-CLI section in bootstrap-generated CLAUDE.md. See the [release notes](https://github.com/sand4rbh/kimono/releases/tag/v0.3.0).
+v1.0.0 — stable. Release skill, plugin picker UX, llms.txt, and a Kimono-CLI section in bootstrap-generated CLAUDE.md. See the [release notes](https://github.com/sand4rbh/kimono/releases/tag/v1.0.0).
 
 ## Install
 
 Requires Rust 1.75+.
 
 ```bash
-cargo install --git https://github.com/sand4rbh/kimono --tag v0.3.0
+cargo install --git https://github.com/sand4rbh/kimono --tag v1.0.0
 ```
 
 Or build from source:
