@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use console::style;
 
@@ -14,26 +16,35 @@ pub enum Scope {
 
 pub fn run(scope: Scope) -> Result<()> {
     let cfg = config::load_and_validate().ok();
-    let installed = cfg
+    let installed: HashMap<String, String> = cfg
         .as_ref()
         .and_then(|c| c.plugins.as_ref())
         .map(|p| p.installed.clone())
         .unwrap_or_default();
 
+    // --installed renders from local config alone, no network or registry needed.
     if scope == Scope::Installed {
         ui::header("Installed skills");
         if installed.is_empty() {
-            ui::info("(none)");
+            println!("  (none) — run `kimono plugins install` to pick from the catalog");
             return Ok(());
         }
-        let mut names: Vec<_> = installed.keys().collect();
+        let mut names: Vec<&String> = installed.keys().collect();
         names.sort();
-        for name in names {
-            println!("  {} {}", style(name).green(), installed[name]);
+        for name in &names {
+            println!(
+                "  {} {} {}",
+                style("✓").green(),
+                style(name).bold(),
+                style(&installed[*name]).dim()
+            );
         }
+        println!();
+        ui::info(&format!("{} skills installed", names.len()));
         return Ok(());
     }
 
+    // --available and the default scope both need the registry index.
     let registry_url = cfg
         .as_ref()
         .and_then(|c| c.plugins.as_ref())
@@ -51,23 +62,56 @@ pub fn run(scope: Scope) -> Result<()> {
     };
     let index = registry::load_index(&cache)?;
 
-    ui::header(&format!("Available skills (registry: {registry_url})"));
-    for skill in &index.skills {
-        if scope == Scope::Available && installed.contains_key(&skill.name) {
-            continue;
-        }
-        let marker = if installed.contains_key(&skill.name) {
-            style("(installed)").dim().to_string()
+    ui::header(&format!("Skills (registry: {registry_url})"));
+
+    let filtered: Vec<&registry::SkillEntry> = index
+        .skills
+        .iter()
+        .filter(|s| match scope {
+            Scope::Available => !installed.contains_key(&s.name),
+            _ => true,
+        })
+        .collect();
+
+    let total_count = index.skills.len();
+    let installed_count = installed.len();
+    let available_count = total_count.saturating_sub(installed_count);
+
+    println!();
+    for skill in &filtered {
+        let is_installed = installed.contains_key(&skill.name);
+        let status_glyph = if is_installed {
+            style("✓").green().to_string()
         } else {
+            style("○").dim().to_string()
+        };
+        let name_styled = if is_installed {
+            style(&skill.name).bold().to_string()
+        } else {
+            style(&skill.name).bold().dim().to_string()
+        };
+        let tags = if skill.tags.is_empty() {
             String::new()
+        } else {
+            format!(
+                " {}",
+                style(format!("[{}]", skill.tags.join(", "))).dim()
+            )
         };
         println!(
-            "  {:<18} {:<8} {}  {}",
-            style(&skill.name).bold(),
-            skill.version,
-            marker,
-            skill.description
+            "  {} {}  {}{}",
+            status_glyph,
+            name_styled,
+            style(&skill.version).dim(),
+            tags,
         );
+        println!("      {}", skill.description);
     }
+
+    println!();
+    ui::info(&format!(
+        "{} total · {} installed · {} available",
+        total_count, installed_count, available_count
+    ));
     Ok(())
 }
