@@ -13,14 +13,14 @@ Kimono wraps multiple git repositories into a single workspace with shared conte
 
 ## Status
 
-v0.2.0 — the v2 plugin model is live. See the [release notes](https://github.com/sand4rbh/kimono/releases/tag/v0.2.0).
+v0.3.0 — release skill, plugin picker UX, llms.txt, and a Kimono-CLI section in bootstrap-generated CLAUDE.md. See the [release notes](https://github.com/sand4rbh/kimono/releases/tag/v0.3.0).
 
 ## Install
 
 Requires Rust 1.75+.
 
 ```bash
-cargo install --git https://github.com/sand4rbh/kimono --tag v0.2.0
+cargo install --git https://github.com/sand4rbh/kimono --tag v0.3.0
 ```
 
 Or build from source:
@@ -99,6 +99,7 @@ Only `workspace.name` and `repos.<name>.remote` are required. Everything else ha
 |---------|--------------|
 | `kimono init [name]` | Interactive workspace setup |
 | `kimono add <name> <remote>` | Add a repo |
+| `kimono remove <name>` | Remove a repo from the workspace |
 | `kimono clone` | Clone all repos from config |
 | `kimono sync` | Fetch + rebase all repos |
 | `kimono status` | Working tree state across repos |
