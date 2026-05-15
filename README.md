@@ -156,4 +156,4 @@ Kimono ships seven default skills (`bootstrap`, `discover`, `git-commit`, `creat
 
 ## License
 
-TBD
+[MIT](LICENSE) © 2026 Sandarbh Sahu
