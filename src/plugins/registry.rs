@@ -148,7 +148,7 @@ mod tests {
         let repo_root = std::path::Path::new(manifest_dir);
         let index = load_index(repo_root).expect("failed to parse repo skills/index.json");
         assert_eq!(index.schema_version, 1);
-        assert_eq!(index.skills.len(), 7, "expected 7 skills in catalog");
+        assert_eq!(index.skills.len(), 8, "expected 8 skills in catalog");
         let names: Vec<&str> = index.skills.iter().map(|s| s.name.as_str()).collect();
         for required in &[
             "bootstrap",
@@ -158,6 +158,7 @@ mod tests {
             "update-pr",
             "code-review",
             "hookify-rules",
+            "md-to-gdoc",
         ] {
             assert!(names.contains(required), "missing skill: {required}");
         }

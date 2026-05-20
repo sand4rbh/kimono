@@ -191,7 +191,8 @@ skills/                             # Default skills bundled in this repo (fetch
 ├── create-pr/SKILL.md
 ├── update-pr/SKILL.md
 ├── code-review/SKILL.md
-└── hookify-rules/SKILL.md
+├── hookify-rules/SKILL.md
+└── md-to-gdoc/                     # SKILL.md + README.md + bin/ (curl/jq bash scripts)
 ```
 
 ## Implementation Status
@@ -203,7 +204,7 @@ The v2 pivot is complete:
 - Bootstrap and discover skills replace Rust-and-Tera context generation
 - Workflow commands (commit, create-pr, update-pr, code-review) are skills
 - Hookify rules are a separate skill (hookify-rules)
-- 7 default skills live under skills/ in this repo and are fetched via shallow clone
+- 8 catalog skills live under skills/ in this repo and are fetched via shallow clone (md-to-gdoc added 2026-05-20)
 
 ## Key Design Decisions
 

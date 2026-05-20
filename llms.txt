@@ -44,7 +44,7 @@ Alias: `kimono skills` is identical to `kimono plugins`.
 
 The skill catalog lives in this repo under `skills/`. Kimono shallow-clones the repo to `~/.cache/kimono/registry/` and installs skills into the workspace's `.claude/skills/<name>/`. Each skill is a single Markdown file with YAML frontmatter (`name`, `description`) that Claude Code can invoke.
 
-- [Skill catalog manifest](skills/index.json): all 7 default skills with name, description, version, tags, path
+- [Skill catalog manifest](skills/index.json): all 8 catalog skills with name, description, version, tags, path
 - [bootstrap skill](skills/bootstrap/SKILL.md): initial AI context setup — writes minimal `CLAUDE.md` and per-project agent files from config + manifests; light-touch, no source-tree walking
 - [discover skill](skills/discover/SKILL.md): deep codebase scan — augments `CLAUDE.md` and agent files with architecture, domain vocabulary, hotspots; expensive, opt-in
 - [git-commit skill](skills/git-commit/SKILL.md): stage and commit changes in worktrees with contextual messages; refuses to commit in `apps/`
@@ -52,6 +52,7 @@ The skill catalog lives in this repo under `skills/`. Kimono shallow-clones the 
 - [update-pr skill](skills/update-pr/SKILL.md): push commits, refresh PR description, report check + review state
 - [code-review skill](skills/code-review/SKILL.md): fetch PR review comments and structure them for the agent to address
 - [hookify-rules skill](skills/hookify-rules/SKILL.md): generate `.claude/hookify/` rules enforcing the read-only master pattern; requires the hookify Claude Code plugin
+- [md-to-gdoc skill](skills/md-to-gdoc/SKILL.md): convert a local markdown file to a Google Doc in the user's Drive — bash + curl + jq + Drive API; tracks `gdoc-id` in the file's frontmatter so re-runs update the same Doc. Per-user OAuth setup required (see the skill's [README](skills/md-to-gdoc/README.md))
 
 ## Config schema
 

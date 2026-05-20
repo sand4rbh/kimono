@@ -50,6 +50,13 @@
       "version": "1.0.0",
       "tags": ["hooks", "enforcement"],
       "path": "skills/hookify-rules"
+    },
+    {
+      "name": "md-to-gdoc",
+      "description": "Convert a local markdown file to a Google Doc in the user's Drive. Re-runs on the same file update the existing Doc — gdoc-id is tracked in the file's frontmatter. Requires per-user GCP OAuth setup (see the skill's README).",
+      "version": "1.0.0",
+      "tags": ["docs", "google-drive", "export", "sharing"],
+      "path": "skills/md-to-gdoc"
     }
   ]
 }

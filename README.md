@@ -146,7 +146,7 @@ my-platform/
 
 ### Plugins / skills
 
-Kimono ships seven default skills (`bootstrap`, `discover`, `git-commit`, `create-pr`, `update-pr`, `code-review`, `hookify-rules`) that are fetched via shallow clone from a registry and installed into `.claude/skills/`. Each skill is a directory with a `SKILL.md` Claude Code reads at session start. Versions are pinned per-workspace in `plugins.installed` so collaborators get the same behavior. Use `kimono plugins install <name>` to add more from the registry, or point `plugins.registry` at your own.
+Kimono ships eight catalog skills (`bootstrap`, `discover`, `git-commit`, `create-pr`, `update-pr`, `code-review`, `hookify-rules`, `md-to-gdoc`) that are fetched via shallow clone from a registry and installed into `.claude/skills/`. Each skill is a directory with a `SKILL.md` Claude Code reads at session start. Versions are pinned per-workspace in `plugins.installed` so collaborators get the same behavior. Use `kimono plugins install <name>` to add more from the registry, or point `plugins.registry` at your own.
 
 ## Docs
 
